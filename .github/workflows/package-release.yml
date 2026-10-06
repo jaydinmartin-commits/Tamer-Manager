@@ -1,0 +1,51 @@
+name: Package Tamer Manager
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact tagged commit
+        uses: actions/checkout@v4
+
+      - name: Validate module manifest
+        shell: bash
+        run: |
+          test -f module.json
+          node -e 'const fs=require("fs"); const m=JSON.parse(fs.readFileSync("module.json","utf8")); if (m.id !== "tamer-manager") throw new Error("Unexpected module id"); if (!m.version) throw new Error("Missing module version"); if (!m.download.includes("Tamer-Manager/releases/download/v")) throw new Error("Download URL is not isolated to Tamer-Manager");'
+
+      - name: Verify repository isolation
+        shell: bash
+        run: |
+          if grep -R --exclude-dir=.git -nE 'tamer-companion-manager|Tamer-companion-manager' .; then
+            echo "Historical module reference detected in runtime/package files."
+            exit 1
+          fi
+
+      - name: Build release archive
+        shell: bash
+        run: |
+          VERSION=$(node -p 'require("./module.json").version')
+          TAG="v${VERSION}"
+          test "${GITHUB_REF_NAME}" = "${TAG}"
+          mkdir -p dist/package
+          rsync -a --exclude='.git/' --exclude='.github/' --exclude='dist/' ./ dist/package/
+          cd dist
+          zip -qr "tamer-manager-${TAG}.zip" package
+          mv "tamer-manager-${TAG}.zip" "../tamer-manager-${TAG}.zip"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            "tamer-manager-${GITHUB_REF_NAME}.zip" \
+            --title "Tamer Manager ${GITHUB_REF_NAME}" \
+            --generate-notes
