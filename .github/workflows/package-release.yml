@@ -24,7 +24,7 @@ jobs:
       - name: Verify repository isolation
         shell: bash
         run: |
-          if grep -R --exclude-dir=.git -nE 'tamer-companion-manager|Tamer-companion-manager' .; then
+          if grep -R --exclude-dir=.git -nE 'tamer-companion-manager|Tamer-companion-manager' module.json scripts templates styles macros; then
             echo "Historical module reference detected in runtime/package files."
             exit 1
           fi
