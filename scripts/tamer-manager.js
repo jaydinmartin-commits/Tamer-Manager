@@ -1,4 +1,4 @@
-import { HandlebarsApplicationMixin, ApplicationV2 } from "foundry.applications.api";
+const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 import { TamerRecords } from "./data/tamer-records.js";
 
 const MODULE_ID = "tamer-manager";
