@@ -72,7 +72,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   static async chooseActor() {
-    const candidates = (game.actors?.contents ?? []).filter(actor => actor.type !== "character");
+    const existing = new Set(TamerRecords.read(this.tamer).map(record => record.actorUuid));
+    const candidates = (game.actors?.contents ?? []).filter(actor => actor !== this.tamer && !existing.has(actor.uuid));
     if (!candidates.length) {
       ui.notifications.warn("No Actor documents are available to add.");
       return null;
