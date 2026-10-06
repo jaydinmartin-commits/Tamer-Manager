@@ -12,7 +12,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact tagged commit
+      - name: Checkout exact pushed commit
         uses: actions/checkout@v4
 
       - name: Validate module manifest
