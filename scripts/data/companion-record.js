@@ -61,7 +61,7 @@ export const CompanionRecord = Object.freeze({
     const value = actor?.getFlag?.(MODULE_ID, FLAG_KEY);
     const records = Array.isArray(value) ? value : value?.companions;
     return Array.isArray(records)
-      ? records.map(this.normalize).filter(Boolean)
+      ? records.map(record => this.normalize(record)).filter(Boolean)
       : [];
   }
 });
