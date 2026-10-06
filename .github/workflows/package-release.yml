@@ -35,11 +35,8 @@ jobs:
           VERSION=$(node -p 'require("./module.json").version')
           TAG="v${VERSION}"
           echo "Packaging ${TAG} from ${GITHUB_SHA}"
-          mkdir -p dist/package
-          rsync -a --exclude='.git/' --exclude='.github/' --exclude='dist/' ./ dist/package/
-          cd dist
-          zip -qr "tamer-manager-${TAG}.zip" package
-          mv "tamer-manager-${TAG}.zip" "../tamer-manager-${TAG}.zip"
+          mkdir -p dist
+          zip -qr "tamer-manager-${TAG}.zip" . -x '.git/*' '.github/*' 'dist/*' 'tamer-manager-*.zip'
 
       - name: Create GitHub release
         env:
