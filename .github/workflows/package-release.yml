@@ -2,8 +2,8 @@ name: Package Tamer Manager
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -34,7 +34,7 @@ jobs:
         run: |
           VERSION=$(node -p 'require("./module.json").version')
           TAG="v${VERSION}"
-          test "${GITHUB_REF_NAME}" = "${TAG}"
+          echo "Packaging ${TAG} from ${GITHUB_SHA}"
           mkdir -p dist/package
           rsync -a --exclude='.git/' --exclude='.github/' --exclude='dist/' ./ dist/package/
           cd dist
@@ -45,7 +45,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
-            "tamer-manager-${GITHUB_REF_NAME}.zip" \
-            --title "Tamer Manager ${GITHUB_REF_NAME}" \
+          VERSION=$(node -p 'require("./module.json").version')
+          TAG="v${VERSION}"
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; nothing to publish."
+            exit 0
+          fi
+          gh release create "${TAG}" \
+            "tamer-manager-${TAG}.zip" \
+            --title "Tamer Manager ${TAG}" \
             --generate-notes
