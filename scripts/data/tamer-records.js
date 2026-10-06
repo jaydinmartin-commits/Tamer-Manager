@@ -22,7 +22,7 @@ export class TamerRecords {
   static async write(actor, companions) {
     if (!actor?.setFlag || !this.isTamer(actor)) return false;
     const normalized = companions
-      .map(CompanionRecord.normalize)
+      .map(record => CompanionRecord.normalize(record))
       .filter(Boolean);
     await actor.setFlag(MODULE_ID, FLAG_KEY, normalized);
     return true;
