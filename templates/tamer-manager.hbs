@@ -1,0 +1,36 @@
+<section class="tamer-manager__root">
+  <header class="tamer-manager__header">
+    <div>
+      <h2>Tamer Manager</h2>
+      {{#if tamer}}
+        <p class="tamer-manager__tamer">{{tamer.name}}</p>
+      {{else}}
+        <p class="tamer-manager__tamer">No Tamer selected</p>
+      {{/if}}
+    </div>
+    <div class="tamer-manager__actions">
+      <button type="button" data-action="addCompanion"><i class="fa-solid fa-plus"></i> Add Companion</button>
+      <button type="button" data-action="refresh" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+    </div>
+  </header>
+
+  <main class="tamer-manager__body">
+    {{#if companions.length}}
+      <div class="tamer-manager__companions">
+        {{#each companions}}
+          <article class="tamer-manager__card" data-record-id="{{id}}">
+            <div class="tamer-manager__identity">
+              <strong>{{name}}</strong>
+              <span>{{actorUuid}}</span>
+            </div>
+            <button type="button" data-action="removeCompanion" data-record-id="{{id}}" title="Remove companion">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </article>
+        {{/each}}
+      </div>
+    {{else}}
+      <p class="tamer-manager__empty">No companions are currently bonded.</p>
+    {{/if}}
+  </main>
+</section>
