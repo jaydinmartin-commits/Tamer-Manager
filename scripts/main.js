@@ -7,6 +7,7 @@ import { CompanionOptionValidator } from "./data/companion-option-validator.js";
 import { CompanionOptions } from "./data/companion-options.js";
 import { CompanionSelection } from "./data/companion-selection.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
+import { CompanionInitialization } from "./data/companion-initialization.js";
 
 const MODULE_ID = "tamer-manager";
 
@@ -38,6 +39,7 @@ Hooks.once("init", () => {
     CompanionOptionValidator,
     CompanionOptions,
     CompanionSelection,
-    TamerCompanionSummary
+    TamerCompanionSummary,
+    CompanionInitialization
   };
 });
