@@ -26,6 +26,7 @@ Hooks.once("init", () => {
     TamerRecords,
     CompanionOptionDefinition,
     CompanionOptionStore,
+    CompanionOptionValidator,
     CompanionOptions,
     CompanionSelection
   };
