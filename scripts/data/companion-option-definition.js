@@ -14,14 +14,10 @@ function normalizeRequirements(requirements = {}) {
     tamerLevel: Number.isInteger(Number(requirements.tamerLevel)) && Number(requirements.tamerLevel) > 0
       ? Number(requirements.tamerLevel)
       : 0,
-    classIdentifier: cleanString(requirements.classIdentifier),
-    subclassIdentifier: cleanString(requirements.subclassIdentifier),
     companionIdentifiers: Array.isArray(requirements.companionIdentifiers)
       ? [...new Set(requirements.companionIdentifiers.map(value => cleanString(value)).filter(Boolean))]
       : []
   };
-
-  if (!normalized.subclassIdentifier) normalized.classIdentifier = "";
   return normalized;
 }
 
