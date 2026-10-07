@@ -2,6 +2,7 @@ import { TamerManager } from "./tamer-manager.js";
 import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptionDefinition } from "./data/companion-option-definition.js";
 import { CompanionOptionStore } from "./data/companion-option-store.js";
+import { CompanionOptionValidator } from "./data/companion-option-validator.js";
 import { CompanionOptions } from "./data/companion-options.js";
 import { CompanionSelection } from "./data/companion-selection.js";
 
