@@ -6,7 +6,7 @@ const SETTING_KEY = "companionOptions";
 function getDefinitions() {
   if (!game.settings?.settings?.has?.(`${MODULE_ID}.${SETTING_KEY}`)) return [];
   const value = game.settings.get(MODULE_ID, SETTING_KEY);
-  return Array.isArray(value) ? value : [];
+  return Array.isArray(value?.definitions) ? value.definitions : [];
 }
 
 function getTamerClass(actor) {
