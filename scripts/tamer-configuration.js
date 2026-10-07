@@ -170,7 +170,15 @@ export class TamerConfiguration extends HandlebarsApplicationMixin(ApplicationV2
     if (!id) return;
 
     const definition = CompanionOptionStore.get(id);
-    if (!definition || !window.confirm(`Delete "${definition.name}"?`)) return;
+    if (!definition) return;
+
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: "Delete Companion Option" },
+      content: `Delete "${definition.name}"?`,
+      rejectClose: false,
+      modal: true
+    });
+    if (!confirmed) return;
 
     try {
       await CompanionOptionStore.remove(id);
