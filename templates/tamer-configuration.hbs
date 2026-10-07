@@ -1,0 +1,56 @@
+<section class="tamer-manager__root tamer-manager-config__root">
+  <header class="tamer-manager__header">
+    <div>
+      <h2>Companion Options</h2>
+      <p class="tamer-manager__tamer">GM configuration</p>
+    </div>
+    <div class="tamer-manager__actions">
+      <button type="button" data-action="newOption"><i class="fa-solid fa-plus"></i> New Option</button>
+      <button type="button" data-action="refresh" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+    </div>
+  </header>
+  <main class="tamer-manager-config__body">
+    <aside class="tamer-manager-config__list">
+      <div class="tamer-manager-config__list-header"><strong>Configured Options</strong><span>{{definitions.length}}</span></div>
+      {{#if hasDefinitions}}
+        <div class="tamer-manager-config__options">
+          {{#each definitions}}
+            <article class="tamer-manager-config__option {{#if (eq id ../editingId)}}is-selected{{/if}}">
+              <button type="button" class="tamer-manager-config__option-select" data-action="editOption" data-option-id="{{id}}">
+                <span class="tamer-manager-config__option-name">{{name}}</span>
+                <span class="tamer-manager-config__option-meta">{{type}} · {{id}}</span>
+              </button>
+              <button type="button" class="tamer-manager-config__option-delete" data-action="deleteOption" data-option-id="{{id}}" title="Delete"><i class="fa-solid fa-trash"></i></button>
+            </article>
+          {{/each}}
+        </div>
+      {{else}}
+        <p class="tamer-manager__empty">No companion options have been configured.</p>
+      {{/if}}
+    </aside>
+    <section class="tamer-manager-config__editor">
+      <form>
+        <div class="tamer-manager-config__editor-header">
+          <div><h3>{{#if editingId}}Edit Option{{else}}New Option{{/if}}</h3><p>GM-defined configuration is authoritative. Compendium Items are optional references.</p></div>
+          {{#if editingId}}<button type="button" data-action="cancelEdit">New</button>{{/if}}
+        </div>
+        <div class="tamer-manager-config__grid">
+          <label><span>ID</span><input name="id" type="text" value="{{draft.id}}" {{#if editingId}}readonly{{/if}} required></label>
+          <label><span>Name</span><input name="name" type="text" value="{{draft.name}}" required></label>
+          <label><span>Type</span><select name="type"><option value="improvement" {{#if (eq draft.type "improvement")}}selected{{/if}}>Improvement</option><option value="augment" {{#if (eq draft.type "augment")}}selected{{/if}}>Augment</option></select></label>
+          <label><span>Source Item UUID <small>(optional)</small></span><input name="sourceUuid" type="text" value="{{draft.sourceUuid}}" placeholder="Compendium or Item UUID"></label>
+          <label><span>Tamer Level</span><input name="tamerLevel" type="number" min="0" step="1" value="{{draft.tamerLevel}}"></label>
+          <label><span>Slot Cost</span><input name="slotCost" type="number" min="0" step="1" value="{{draft.slotCost}}"></label>
+          <label><span>Point Cost</span><input name="pointCost" type="number" min="0" step="1" value="{{draft.pointCost}}"></label>
+          <label><span>Tree ID <small>(optional)</small></span><input name="treeId" type="text" value="{{draft.treeId}}"></label>
+          <label class="tamer-manager-config__wide"><span>Companion Identifiers <small>(comma-separated)</small></span><input name="companionIdentifiers" type="text" value="{{draft.companionIdentifiers}}"></label>
+          <label class="tamer-manager-config__wide"><span>Prerequisite IDs <small>(comma-separated)</small></span><input name="prerequisiteIds" type="text" value="{{draft.prerequisiteIds}}"></label>
+          <label><span>Replaces ID <small>(optional)</small></span><input name="replacesId" type="text" value="{{draft.replacesId}}"></label>
+          <label class="tamer-manager-config__checkbox"><input name="repeatable" type="checkbox" {{#if draft.repeatable}}checked{{/if}}><span>Repeatable</span></label>
+          <label><span>Max Selections <small>(repeatable only)</small></span><input name="maxSelections" type="number" min="1" step="1" value="{{draft.maxSelections}}"></label>
+        </div>
+        <footer class="tamer-manager-config__footer"><span>Changes are validated before they are written to the world.</span><button type="button" data-action="saveOption"><i class="fa-solid fa-floppy-disk"></i> Save</button></footer>
+      </form>
+    </section>
+  </main>
+</section>
