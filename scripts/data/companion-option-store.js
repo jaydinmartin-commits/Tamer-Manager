@@ -1,4 +1,5 @@
 import { CompanionOptionDefinition } from "./companion-option-definition.js";
+import { CompanionOptionValidator } from "./companion-option-validator.js";
 
 const MODULE_ID = "tamer-manager";
 const SETTING_KEY = "companionOptions";
@@ -26,25 +27,8 @@ function readStore() {
 }
 
 function validateDefinitions(definitions) {
-  const ids = new Set();
-  for (const definition of definitions) {
-    if (ids.has(definition.id)) throw new Error(`Duplicate companion option ID: ${definition.id}`);
-    ids.add(definition.id);
-  }
-  for (const definition of definitions) {
-    if (definition.prerequisiteIds.includes(definition.id)) {
-      throw new Error(`Companion option cannot require itself: ${definition.id}`);
-    }
-    if (definition.replacesId === definition.id) {
-      throw new Error(`Companion option cannot replace itself: ${definition.id}`);
-    }
-    for (const prerequisiteId of definition.prerequisiteIds) {
-      if (!ids.has(prerequisiteId)) throw new Error(`Unknown prerequisite ${prerequisiteId} for ${definition.id}.`);
-    }
-    if (definition.replacesId && !ids.has(definition.replacesId)) {
-      throw new Error(`Unknown replacement ${definition.replacesId} for ${definition.id}.`);
-    }
-  }
+  const result = CompanionOptionValidator.validate(definitions);
+  if (!result.valid) throw new Error(result.errors.join(" "));
   return definitions;
 }
 
