@@ -4,7 +4,8 @@ const MODULE_ID = "tamer-manager";
 const SETTING_KEY = "companionOptions";
 
 function getDefinitions() {
-  const value = game.settings?.get?.(MODULE_ID, SETTING_KEY);
+  if (!game.settings?.settings?.has?.(`${MODULE_ID}.${SETTING_KEY}`)) return [];
+  const value = game.settings.get(MODULE_ID, SETTING_KEY);
   return Array.isArray(value) ? value : [];
 }
 
@@ -43,7 +44,7 @@ function companionMatches(record, requirements) {
   if (!identifiers.length) return true;
 
   const actorUuid = String(record?.actorUuid ?? "");
-  const actor = actorUuid ? fromUuidSync?.(actorUuid) : null;
+  const actor = actorUuid && globalThis.fromUuidSync ? globalThis.fromUuidSync(actorUuid) : null;
   const identifier = String(
     actor?.system?.identifier ??
     actor?.identifier ??
