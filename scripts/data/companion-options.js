@@ -25,20 +25,6 @@ function getTamerLevel(actor) {
   return Number.isFinite(levels) ? levels : 0;
 }
 
-function hasRequiredSubclass(actor, requirements) {
-  if (!requirements.subclassIdentifier) return true;
-
-  const subclass = actor?.items?.find(item =>
-    item.type === "subclass" &&
-    String(item.system?.classIdentifier ?? "").trim().toLowerCase() ===
-      String(requirements.classIdentifier || "tamer").trim().toLowerCase() &&
-    String(item.system?.identifier ?? "").trim().toLowerCase() ===
-      String(requirements.subclassIdentifier).trim().toLowerCase()
-  );
-
-  return Boolean(subclass);
-}
-
 function companionMatches(record, requirements) {
   const identifiers = requirements.companionIdentifiers ?? [];
   if (!identifiers.length) return true;
@@ -79,7 +65,6 @@ export const CompanionOptions = Object.freeze({
 
     const requirements = definition.requirements;
     if (requirements.tamerLevel && getTamerLevel(tamer) < requirements.tamerLevel) return false;
-    if (!hasRequiredSubclass(tamer, requirements)) return false;
     if (!companionMatches(companion, requirements)) return false;
 
     return true;
