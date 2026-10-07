@@ -26,7 +26,6 @@ export const CompanionOptionDefinition = Object.freeze({
     id,
     type = "improvement",
     name = "",
-    description = "",
     sourceUuid = null,
     requirements = {},
     repeatable = false,
@@ -52,7 +51,6 @@ export const CompanionOptionDefinition = Object.freeze({
       id: String(id),
       type: String(type),
       name: String(name ?? ""),
-      description: String(description ?? ""),
       sourceUuid: sourceUuid ? String(sourceUuid) : null,
       requirements: normalizeRequirements({
         ...requirements,
