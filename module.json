@@ -2,7 +2,7 @@
   "id": "tamer-manager",
   "title": "Tamer Manager",
   "description": "A clean-room Tamer companion management module for Foundry VTT.",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "authors": [{"name": "Jaydin"}],
   "compatibility": {"minimum": "14", "verified": "14"},
   "esmodules": ["scripts/main.js"],
