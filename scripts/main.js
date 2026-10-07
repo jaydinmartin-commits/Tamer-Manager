@@ -1,4 +1,5 @@
 import { TamerManager } from "./tamer-manager.js";
+import { TamerConfiguration } from "./tamer-configuration.js";
 import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptionDefinition } from "./data/companion-option-definition.js";
 import { CompanionOptionStore } from "./data/companion-option-store.js";
@@ -15,14 +16,21 @@ Hooks.once("init", () => {
     scope: "world",
     config: false,
     type: Object,
-    default: {
-      schemaVersion: 1,
-      definitions: []
-    }
+    default: { schemaVersion: 1, definitions: [] }
+  });
+
+  game.settings.registerMenu(MODULE_ID, "companionOptionsConfig", {
+    name: "Tamer Manager Companion Options",
+    label: "Configure Companion Options",
+    hint: "Create and manage GM-defined Improvements and compatible companion option definitions.",
+    icon: "fa-solid fa-paw",
+    type: TamerConfiguration,
+    restricted: true
   });
 
   game.modules.get(MODULE_ID).api = {
     TamerManager,
+    TamerConfiguration,
     TamerRecords,
     CompanionOptionDefinition,
     CompanionOptionStore,
