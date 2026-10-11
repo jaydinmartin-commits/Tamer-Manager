@@ -94,12 +94,6 @@ export const ToughenUpApplication = Object.freeze({
     };
 
     const hdPath = "system.attributes.hd.max";
-    const hpUpdate = {
-      "system.attributes.hp.max": hpAfter.max,
-      "system.attributes.hp.value": hpAfter.value,
-      [hdPath]: preview.hitDiceBefore + 1
-    };
-
     const ledgerEntry = {
       applicationId: preview.applicationId,
       type: "toughen-up",
@@ -114,10 +108,15 @@ export const ToughenUpApplication = Object.freeze({
       appliedAt: new Date().toISOString()
     };
 
-    // Persist the Actor changes first. Only record success after the update succeeds.
-    await actor.update(hpUpdate);
+    // Apply mechanics and audit record in one Actor update to avoid a successful
+    // HP change without a corresponding idempotency record if a later write fails.
     const ledger = getLedger(actor);
-    await actor.setFlag(MODULE_ID, FLAG_KEY, [...ledger, ledgerEntry]);
+    await actor.update({
+      "system.attributes.hp.max": hpAfter.max,
+      "system.attributes.hp.value": hpAfter.value,
+      [hdPath]: preview.hitDiceBefore + 1,
+      [`flags.${MODULE_ID}.${FLAG_KEY}`]: [...ledger, ledgerEntry]
+    });
 
     const verifiedHP = getHitPoints(actor);
     const verifiedHD = getHitDie(actor);
