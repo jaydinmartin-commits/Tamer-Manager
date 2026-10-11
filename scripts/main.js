@@ -8,6 +8,7 @@ import { CompanionOptions } from "./data/companion-options.js";
 import { CompanionSelection } from "./data/companion-selection.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 import { CompanionInitialization } from "./data/companion-initialization.js";
+import { ToughenUpApplication } from "./data/toughen-up-application.js";
 
 const MODULE_ID = "tamer-manager";
 
@@ -40,6 +41,7 @@ Hooks.once("init", () => {
     CompanionOptions,
     CompanionSelection,
     TamerCompanionSummary,
-    CompanionInitialization
+    CompanionInitialization,
+    ToughenUpApplication
   };
 });
