@@ -43,7 +43,7 @@ function migrate(value, definitions) {
     if (!tree || typeof tree !== "object" || Array.isArray(tree) || !tree.id) {
       throw new Error(`Stored companion tree at index ${index} is malformed; data was preserved.`);
     }
-    return { id: String(tree.id), name: String(tree.name ?? ""), description: String(tree.description ?? "") };
+    return { ...clone(tree), id: String(tree.id), name: String(tree.name ?? ""), description: String(tree.description ?? "") };
   });
   validateTrees(trees, definitions);
   return { schemaVersion: SCHEMA_VERSION, trees };
@@ -64,7 +64,7 @@ export const CompanionTreeStore = Object.freeze({
     if (!game.user?.isGM) throw new Error("Only a GM may modify companion trees.");
     const normalized = trees.map((tree, index) => {
       if (!tree || typeof tree !== "object" || Array.isArray(tree) || !tree.id) throw new Error(`Companion tree at index ${index} is malformed.`);
-      return { id: String(tree.id), name: String(tree.name ?? "").trim(), description: String(tree.description ?? "") };
+      return { ...clone(tree), id: String(tree.id), name: String(tree.name ?? "").trim(), description: String(tree.description ?? "") };
     });
     validateTrees(normalized, CompanionOptionStore.read().definitions);
     const store = { schemaVersion: SCHEMA_VERSION, trees: normalized };
