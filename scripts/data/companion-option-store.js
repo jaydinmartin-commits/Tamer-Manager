@@ -58,6 +58,15 @@ function normalizeDefinitions(definitions) {
     if (!record || typeof record !== "object" || Array.isArray(record) || !record.id) {
       throw new Error(`Companion option at index ${index} is malformed; it was not discarded.`);
     }
+    if (record.name != null && typeof record.name !== "string") throw new Error(`Companion option at index ${index} has an invalid name.`);
+    if (record.slotCost != null && (!Number.isInteger(record.slotCost) || record.slotCost < 0)) throw new Error(`Companion option ${record.id} has invalid slotCost.`);
+    if (record.pointCost != null && (!Number.isFinite(record.pointCost) || record.pointCost < 0)) throw new Error(`Companion option ${record.id} has invalid pointCost.`);
+    if (record.repeatable != null && typeof record.repeatable !== "boolean") throw new Error(`Companion option ${record.id} has invalid repeatable flag.`);
+    if (record.maxSelections != null && (!Number.isInteger(record.maxSelections) || record.maxSelections < 1)) throw new Error(`Companion option ${record.id} has invalid maxSelections.`);
+    if (record.requirements != null && (!record.requirements || typeof record.requirements !== "object" || Array.isArray(record.requirements))) throw new Error(`Companion option ${record.id} has invalid requirements.`);
+    if (record.requirements?.tamerLevel != null && (!Number.isInteger(record.requirements.tamerLevel) || record.requirements.tamerLevel < 0 || record.requirements.tamerLevel > 20)) throw new Error(`Companion option ${record.id} has invalid Tamer level requirement.`);
+    if (record.prerequisiteIds != null && !Array.isArray(record.prerequisiteIds)) throw new Error(`Companion option ${record.id} prerequisiteIds must be an array.`);
+    if (record.treeId != null && (typeof record.treeId !== "string" || !record.treeId.trim())) throw new Error(`Companion option ${record.id} has invalid treeId.`);
     return CompanionOptionDefinition.normalize(record);
   });
   const validation = CompanionOptionValidator.validate(normalized);
