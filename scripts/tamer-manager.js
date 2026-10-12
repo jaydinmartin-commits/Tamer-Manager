@@ -196,15 +196,87 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
   static async _onToggleSummon(event, target) {
     const recordId = target?.dataset?.recordId;
     if (!recordId || !this.tamer) return;
-    const record = TamerRecords.read(this.tamer).find(item => item.id === recordId);
+    const records = TamerRecords.read(this.tamer);
+    const record = records.find(item => item.id === recordId);
     if (!record) {
       ui.notifications.warn("That companion relationship no longer exists.");
       await this.render({ force: true });
       return;
     }
-    // This control records the intended state only. Actual token creation and
-    // removal are not claimed until a summon implementation is connected.
-    ui.notifications.info("Summoning is not yet connected to token placement. No game state was changed.");
+    if (!game.user?.isGM && !this.tamer.isOwner) {
+      ui.notifications.warn("You do not have permission to summon this companion.");
+      return;
+    }
+    const scene = canvas.scene;
+    if (!scene) {
+      ui.notifications.warn("Open a scene before summoning a companion.");
+      return;
+    }
+
+    if (record.status === "summoned" && record.tokenUuid) {
+      let tokenDoc = null;
+      try { tokenDoc = await fromUuid(record.tokenUuid); } catch { tokenDoc = null; }
+      if (!tokenDoc) {
+        tokenDoc = scene.tokens.find(token => token.id === record.tokenUuid || token.uuid === record.tokenUuid) ?? null;
+      }
+      if (!tokenDoc || tokenDoc.parent?.id !== scene.id) {
+        ui.notifications.warn("The recorded companion token is not on the current scene. Its relationship was preserved.");
+        return;
+      }
+      await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id]);
+      const updated = records.map(item => item.id === recordId
+        ? { ...item, status: "in-vessel", tokenUuid: null }
+        : item);
+      try {
+        await TamerRecords.write(this.tamer, updated);
+      } catch (error) {
+        console.error("Tamer Manager | Could not save companion storage state.", error);
+        ui.notifications.error("The token was removed, but the companion status could not be saved. Refresh and check the record.");
+        return;
+      }
+      ui.notifications.info("Companion returned to storage.");
+      await this.render({ force: true });
+      return;
+    }
+
+    const actor = await fromUuid(record.actorUuid).catch(() => null);
+    if (!actor || actor.type !== "npc") {
+      ui.notifications.warn("The companion Actor could not be found or is no longer an NPC.");
+      return;
+    }
+    const tamerToken = canvas.tokens?.placeables?.find(token => token.actor?.uuid === this.tamer.uuid);
+    if (!tamerToken) {
+      ui.notifications.warn("Place or select a token for the Tamer on the current scene before summoning.");
+      return;
+    }
+    const grid = Number(scene.grid?.size) || Number(canvas.grid?.size) || 100;
+    const prototype = actor.prototypeToken?.toObject?.() ?? {};
+    const tokenData = {
+      ...prototype,
+      name: actor.name,
+      actorId: actor.id,
+      actorLink: true,
+      x: tamerToken.document.x + grid,
+      y: tamerToken.document.y,
+      hidden: false
+    };
+    delete tokenData._id;
+    const [created] = await scene.createEmbeddedDocuments("Token", [tokenData]);
+    if (!created) {
+      ui.notifications.error("Foundry did not create a token for this companion.");
+      return;
+    }
+    try {
+      await TamerRecords.write(this.tamer, records.map(item => item.id === recordId
+        ? { ...item, status: "summoned", tokenUuid: created.uuid }
+        : item));
+    } catch (error) {
+      console.error("Tamer Manager | Could not save summoned companion state.", error);
+      ui.notifications.error("The token was created, but its summoned state could not be saved. Do not summon it again until you check the scene.");
+      return;
+    }
+    ui.notifications.info(`${actor.name} summoned.`);
+    await this.render({ force: true });
   }
 
   static async _onOpenCompanion(event, target) {
