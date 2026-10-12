@@ -81,6 +81,25 @@ await test("option validator rejects duplicate IDs and dangling prerequisites", 
   assert(result.errors.some(error => error.includes("missing prerequisite")), "Dangling prerequisites should be reported.");
 });
 
+await test("option validator enforces repeatability and replacement definitions", () => {
+  const invalidRepeat = CompanionOptionValidator.validate([
+    option("single", { repeatable: false, maxSelections: 2 })
+  ]);
+  assert(!invalidRepeat.valid && invalidRepeat.errors.some(error => error.includes("maxSelections")),
+    "Non-repeatable option must not permit multiple selections.");
+  const invalidReplace = CompanionOptionValidator.validate([
+    option("base"),
+    option("upgrade", { replacesId: "missing" })
+  ]);
+  assert(!invalidReplace.valid && invalidReplace.errors.some(error => error.includes("replacement target")),
+    "Missing replacement target must be rejected.");
+  const valid = CompanionOptionValidator.validate([
+    option("base"),
+    option("upgrade", { replacesId: "base" })
+  ]);
+  assert(valid.valid, "A valid replacement chain should pass validation.");
+});
+
 await test("option validator rejects prerequisite cycles", () => {
   const result = CompanionOptionValidator.validate([
     option("a", { prerequisiteIds: ["b"] }), option("b", { prerequisiteIds: ["a"] })
