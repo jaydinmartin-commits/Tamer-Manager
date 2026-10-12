@@ -69,7 +69,9 @@ function getCompanionCR(actor) {
 
 function getCRBand(cr) {
   const value = normalizeCR(cr);
-  // The lowest training tier includes all creatures below CR 1/2, not just CR 1/2 itself.\n  if (value >= 0 && value < 0.5) return CR_BANDS[0];\n  return CR_BANDS.find(band => value >= band.min && value <= band.max) ?? null;
+  // CRs below 1/2 use the same lowest training tier as CR 1/2.
+  if (value >= 0 && value < 0.5) return CR_BANDS[0];
+  return CR_BANDS.find(band => value >= band.min && value <= band.max) ?? null;
 }
 
 function getSummary(level) {
