@@ -301,23 +301,21 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       typeof value === "string" ? value : String(value?.id ?? "")
     ).filter(Boolean));
     const byId = new Map(definitions.map(definition => [definition.id, definition]));
-    const available = definitions.filter(definition => {
-      if (!CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record })) return false;
-      if ((definition.prerequisiteIds ?? []).some(id => !selectedIds.has(id))) return false;
-      if (definition.replacesId && !selectedIds.has(definition.replacesId)) return false;
-      const count = [...selectedIds].filter(id => id === definition.id).length;
-      return definition.repeatable || count === 0;
-    });
-    const selectedCount = selectedIds.size;
+    const selectedDefinitions = [...selectedIds].map(id => byId.get(id)).filter(Boolean);
+    const replacedIds = new Set(selectedDefinitions.map(definition => definition.replacesId).filter(Boolean));
+    const effectiveSelectedIds = new Set([...selectedIds].filter(id => !replacedIds.has(id)));
+    const selectedCount = effectiveSelectedIds.size;
     if (!definitions.length) {
       ui.notifications.warn("No companion improvements have been configured by the GM yet.");
       return;
     }
     const rows = definitions.map(definition => {
       const isSelected = selectedIds.has(definition.id);
-      const prerequisitesMet = (definition.prerequisiteIds ?? []).every(id => selectedIds.has(id));
+      const prerequisitesMet = (definition.prerequisiteIds ?? []).every(id => effectiveSelectedIds.has(id));
       const levelMet = CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record });
-      const disabled = !isSelected && (!levelMet || !prerequisitesMet || (!definition.repeatable && selectedCount >= maximum));
+      const replacementMet = !definition.replacesId || effectiveSelectedIds.has(definition.replacesId);
+      const selectedLimitReached = !isSelected && selectedCount >= maximum;
+      const disabled = !isSelected && (!levelMet || !prerequisitesMet || !replacementMet || selectedLimitReached);
       const description = foundry.utils.escapeHTML(String(definition.metadata?.description ?? ""));
       return `<label class="tamer-manager__improvement-option"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites")}</small></span></label>`;
     }).join("");
@@ -331,14 +329,22 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       ]
     });
     if (!Array.isArray(result)) return;
-    if (result.length > maximum) {
-      ui.notifications.warn(`This companion can have at most ${maximum} selected improvements at the Tamer's current level.`);
+    if (new Set(result).size !== result.length) {
+      ui.notifications.warn("Duplicate improvement selections are not supported by this picker.");
+      return;
+    }
+    const resultDefinitions = result.map(id => byId.get(id));
+    const resultReplacedIds = new Set(resultDefinitions.map(definition => definition?.replacesId).filter(Boolean));
+    const effectiveResult = result.filter(id => !resultReplacedIds.has(id));
+    if (effectiveResult.length > maximum) {
+      ui.notifications.warn(`This companion can have at most ${maximum} effective improvements at the Tamer's current level.`);
       return;
     }
     for (const id of result) {
       const definition = byId.get(id);
       if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record }) ||
-          (definition.prerequisiteIds ?? []).some(prerequisite => !result.includes(prerequisite))) {
+          (definition.prerequisiteIds ?? []).some(prerequisite => !effectiveResult.includes(prerequisite)) ||
+          (definition.replacesId && !effectiveResult.includes(definition.replacesId))) {
         ui.notifications.warn(`The selection for ${definition?.name ?? id} is no longer valid. No changes were saved.`);
         return;
       }
