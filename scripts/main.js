@@ -54,40 +54,21 @@ Hooks.once("init", () => {
     restricted: true
   });
 
-  // Foundry V2 sheets expose their header controls through application-class hooks.
-  // Keep this integration thin: the manager itself owns all companion logic and persistence.
-  const openManagerFromSheet = app => {
+  // Foundry v14 ApplicationV2 uses class-specific getHeaderControls hooks.
+  // D&D 5e v6 character sheets derive from ActorSheetV2; use that documented parent hook
+  // so the menu entry also works for subclasses without guessing system-specific class names.
+  Hooks.on("getHeaderControlsActorSheetV2", (app, controls) => {
     const actor = app?.document ?? app?.actor ?? app?.object;
-    if (!actor || !TamerRecords.isTamer(actor)) return;
-    const entry = {
+    if (!actor || !TamerRecords.isTamer(actor) || !Array.isArray(controls)) return;
+    if (controls.some(control => control.action === "openTamerCompanionManager")) return;
+    controls.push({
       action: "openTamerCompanionManager",
       label: "Companion Manager",
       icon: "fa-solid fa-paw",
       visible: true,
       onClick: () => TamerManager.openFor(actor)
-    };
-    const controls = arguments;
-  };
-  for (const hookName of [
-    "getHeaderControlsActorSheet",
-    "getHeaderControlsActorSheet5eCharacter",
-    "getHeaderControlsActorSheet5eCharacter2",
-    "getHeaderControlsActorSheet5eNPC",
-    "getHeaderControlsActorSheet5eNPC2"
-  ]) {
-    Hooks.on(hookName, (app, controls) => {
-      const actor = app?.document ?? app?.actor ?? app?.object;
-      if (!actor || !TamerRecords.isTamer(actor) || !Array.isArray(controls)) return;
-      if (controls.some(control => control.action === "openTamerCompanionManager")) return;
-      controls.push({
-        action: "openTamerCompanionManager",
-        label: "Companion Manager",
-        icon: "fa-solid fa-paw",
-        visible: true,
-        onClick: () => TamerManager.openFor(actor)
-      });
     });
-  }
+  });
 
   game.modules.get(MODULE_ID).api = {
     TamerManager,
