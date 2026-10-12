@@ -39,7 +39,9 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       addCompanion: TamerManager._onAddCompanion,
       removeCompanion: TamerManager._onRemoveCompanion,
       openCompanion: TamerManager._onOpenCompanion,
-      toggleSummon: TamerManager._onToggleSummon
+      toggleSummon: TamerManager._onToggleSummon,
+      assignVessel: TamerManager._onAssignVessel,
+      clearVessel: TamerManager._onClearVessel
     }
   };
   static PARTS = {
@@ -192,6 +194,78 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
     await this.render({ force: true });
+  }
+
+  static async _onAssignVessel(event, target) {
+    const recordId = target?.dataset?.recordId;
+    if (!recordId || !this.tamer) return;
+    if (!game.user?.isGM && !this.tamer.isOwner) {
+      ui.notifications.warn("You do not have permission to manage this companion.");
+      return;
+    }
+    const record = TamerRecords.read(this.tamer).find(item => item.id === recordId);
+    if (!record) {
+      ui.notifications.warn("That companion relationship no longer exists.");
+      await this.render({ force: true });
+      return;
+    }
+    const items = this.tamer.items?.contents ?? Array.from(this.tamer.items ?? []);
+    const candidates = items.filter(item =>
+      item.type !== "class" && item.type !== "subclass" &&
+      (item.type === "equipment" || item.type === "consumable" || item.type === "loot" || item.type === "feat") &&
+      item.id !== record.actorUuid
+    );
+    if (!candidates.length) {
+      ui.notifications.warn("No vessel items were found on this Tamer. Add the vessel item to the character first.");
+      return;
+    }
+    const options = candidates.map(item =>
+      `<option value="${foundry.utils.escapeHTML(item.uuid)}" ${item.uuid === record.vesselUuid ? "selected" : ""}>${foundry.utils.escapeHTML(item.name)}</option>`).join("");
+    const result = await foundry.applications.api.DialogV2.wait({
+      window: { title: "Assign Companion Vessel" },
+      content: `<form><label>Vessel <select name="vessel"><option value="">Choose a vessel</option>${options}</select></label></form>`,
+      buttons: [
+        { action: "assign", label: "Assign", default: true,
+          callback: (event, button) => button.form.elements.vessel.value },
+        { action: "cancel", label: "Cancel" }
+      ]
+    });
+    if (!result) return;
+    const vessel = await fromUuid(result).catch(() => null);
+    if (!vessel || vessel.parent?.uuid !== this.tamer.uuid) {
+      ui.notifications.warn("The selected vessel is no longer on this Tamer.");
+      return;
+    }
+    try {
+      const latest = TamerRecords.read(this.tamer);
+      if (!latest.some(item => item.id === recordId)) throw new Error("Companion relationship changed before assignment.");
+      const saved = await TamerRecords.write(this.tamer, latest.map(item => item.id === recordId
+        ? { ...item, vesselUuid: vessel.uuid, vesselName: vessel.name }
+        : item));
+      if (!saved) throw new Error("Vessel assignment did not persist.");
+      ui.notifications.info(`Assigned ${vessel.name} to ${record.name}.`);
+      await this.render({ force: true });
+    } catch (error) {
+      console.error("Tamer Manager | Vessel assignment failed.", error);
+      ui.notifications.error("Could not save the vessel assignment. The previous relationship was preserved.");
+    }
+  }
+
+  static async _onClearVessel(event, target) {
+    const recordId = target?.dataset?.recordId;
+    if (!recordId || !this.tamer) return;
+    const records = TamerRecords.read(this.tamer);
+    if (!records.some(item => item.id === recordId)) return;
+    try {
+      const saved = await TamerRecords.write(this.tamer, records.map(item => item.id === recordId
+        ? { ...item, vesselUuid: null, vesselName: "" }
+        : item));
+      if (!saved) throw new Error("Vessel removal did not persist.");
+      await this.render({ force: true });
+    } catch (error) {
+      console.error("Tamer Manager | Vessel removal failed.", error);
+      ui.notifications.error("Could not remove the vessel assignment.");
+    }
   }
 
   static async _onToggleSummon(event, target) {
