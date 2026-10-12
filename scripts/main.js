@@ -1,4 +1,5 @@
 import { TamerManager } from "./tamer-manager.js";
+import { TamerDevelopmentPanel } from "./tamer-development-panel.js";
 import { TamerConfiguration } from "./tamer-configuration.js";
 import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptionDefinition } from "./data/companion-option-definition.js";
@@ -8,6 +9,7 @@ import { CompanionOptions } from "./data/companion-options.js";
 import { CompanionSelection } from "./data/companion-selection.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 import { CompanionInitialization } from "./data/companion-initialization.js";
+import { CompanionInitializationApplication } from "./data/companion-initialization-application.js";
 import { CompanionAccessContext } from "./data/companion-access-context.js";
 import { CompanionAccessResolver } from "./data/companion-access-resolver.js";
 import { CompanionProgression } from "./data/companion-progression.js";
@@ -26,6 +28,15 @@ Hooks.once("init", () => {
     default: { schemaVersion: 1, definitions: [] }
   });
 
+  game.settings.registerMenu(MODULE_ID, "developmentPanel", {
+    name: "Development & Testing",
+    label: "Open Test Panel",
+    hint: "Run companion access, progression, and initialization checks from a GM-facing interface.",
+    icon: "fa-solid fa-flask",
+    type: TamerDevelopmentPanel,
+    restricted: true
+  });
+
   game.settings.registerMenu(MODULE_ID, "companionOptionsConfig", {
     name: "Tamer Manager Companion Options",
     label: "Configure Companion Options",
@@ -37,6 +48,7 @@ Hooks.once("init", () => {
 
   game.modules.get(MODULE_ID).api = {
     TamerManager,
+    TamerDevelopmentPanel,
     TamerConfiguration,
     TamerRecords,
     CompanionOptionDefinition,
@@ -46,6 +58,7 @@ Hooks.once("init", () => {
     CompanionSelection,
     TamerCompanionSummary,
     CompanionInitialization,
+    CompanionInitializationApplication,
     CompanionAccessContext,
     CompanionAccessResolver,
     CompanionProgression,

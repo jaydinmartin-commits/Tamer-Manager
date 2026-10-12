@@ -17,5 +17,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Run companion access and progression contracts
+      - name: Syntax-check module and test JavaScript
+        run: find scripts tests -name "*.js" -print0 | xargs -0 -n1 node --experimental-default-type=module --check
+      - name: Run companion access, progression, and initialization contracts
         run: node --experimental-default-type=module tests/companion-access-progression.test.js

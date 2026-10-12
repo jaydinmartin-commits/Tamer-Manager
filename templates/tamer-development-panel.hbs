@@ -1,0 +1,89 @@
+<section class="tamer-manager__root tamer-development__root">
+  <header class="tamer-manager__header">
+    <div>
+      <h2>Development & Testing</h2>
+      <p class="tamer-manager__tamer">GM-only tools for validating companion initialization without the console.</p>
+    </div>
+    <div class="tamer-development__actions"><button type="button" data-action="openOptionSettings">Configure Improvements</button><button type="button" data-action="refresh"><i class="fa-solid fa-rotate"></i> Reset</button></div>
+  </header>
+
+  <main class="tamer-manager__body">
+    <section class="tamer-development__section">
+      <h3>1. Choose test Actors</h3>
+      <form class="tamer-development__form">
+        <label for="tamer-development-owner">Tamer</label>
+        <select id="tamer-development-owner" name="owner">
+          <option value="">Select a Tamer…</option>
+          {{#each owners}}
+            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
+        <label for="tamer-development-companion">Companion NPC</label>
+        <select id="tamer-development-companion" name="companion">
+          <option value="">Select an Actor…</option>
+          {{#each companions}}
+            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
+        <label for="tamer-development-improvement">Improvement to test</label>
+        <select id="tamer-development-improvement" name="improvement">
+          <option value="">Select an improvement…</option>
+          {{#each improvementOptions}}
+            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
+        <p class="tamer-development__note">Use a duplicate NPC in a test world. The preflight button is read-only; applying initialization changes the selected Actor.</p>
+        <div class="tamer-development__actions">
+          <button type="button" data-action="openOwner">Open Tamer Sheet</button>
+          <button type="button" data-action="openCompanion">Open Companion Sheet</button>
+          <button type="button" data-action="runPreflight" {{#if busy}}disabled{{/if}}>Run Preflight Tests</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="tamer-development__section">
+      <h3>2. Results</h3>
+      {{#if report}}
+        <div class="tamer-development__report {{#if report.isPassed}}is-passed{{else}}is-failed{{/if}}">
+          <h4>{{report.title}}</h4>
+          <ul>
+            {{#each report.details}}
+              <li>{{this}}</li>
+            {{/each}}
+          </ul>
+        </div>
+      {{else}}
+        <p class="tamer-manager__empty">No tests have run in this session yet. Choose Actors and run the preflight.</p>
+      {{/if}}
+    </section>
+
+    <section class="tamer-development__section">
+      <h3>3. Apply initialization</h3>
+      <p>This step writes the planned training hit dice and rolled HP increase to the companion Actor. It requires a successful preflight and asks for confirmation before changing data.</p>
+      <button type="button" data-action="applyInitialization" {{#unless canApply}}disabled{{/unless}}>Apply Initialization to Selected NPC</button>
+      <p class="tamer-development__note">This is not a rollback-capable sandbox. Use a disposable test Actor. Re-running the same initialization is blocked by its ledger.</p>
+    </section>
+
+    <section class="tamer-development__section">
+      <h3>4. Improvement registration & universal improvements</h3>
+      <p>Configure improvement definitions in <strong>Game Settings → Tamer Manager Companion Options → Configure Companion Options</strong>. This panel checks a registered improvement's definition and simple requirements. Built-in universal improvements are tested through their own module adapter rather than re-registered as custom items.</p>
+      <div class="tamer-development__actions">
+        <button type="button" data-action="testImprovement" {{#if busy}}disabled{{/if}}>Test Selected Improvement</button>
+        <button type="button" data-action="applyToughenUp" {{#unless canApplyToughenUp}}disabled{{/unless}}>Apply Toughen Up (Test Actor)</button>
+      </div>
+      {{#if improvementReport}}
+        <div class="tamer-development__report {{#if improvementReport.isPassed}}is-passed{{else}}is-failed{{/if}}">
+          <h4>{{improvementReport.title}}</h4>
+          <ul>
+            {{#each improvementReport.details}}
+              <li>{{this}}</li>
+            {{/each}}
+          </ul>
+        </div>
+      {{else}}
+        <p class="tamer-manager__empty">No improvement checks have run yet.</p>
+      {{/if}}
+      <p class="tamer-development__note">Toughen Up is handled as a built-in universal improvement. Registered definitions without a mechanical adapter can be validated but are not falsely reported as applied. Use a disposable NPC for any write test.</p>
+    </section>
+  </main>
+</section>

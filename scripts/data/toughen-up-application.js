@@ -145,6 +145,7 @@ export const ToughenUpApplication = Object.freeze({
     // HP change without a corresponding idempotency record if a later write fails.
     const ledger = getLedger(actor);
     await actor.update({
+      "system.attributes.hd.max": preview.hitDiceBefore + 1,
       "system.attributes.hp.formula": preview.formulaAfter,
       "system.attributes.hp.max": hpAfter.max,
       "system.attributes.hp.value": hpAfter.value,
