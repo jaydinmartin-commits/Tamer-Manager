@@ -1,4 +1,5 @@
 import { CompanionRecord } from "./companion-record.js";
+import { CompanionInitialization } from "./companion-initialization.js";
 
 const MODULE_ID = "tamer-manager";
 const FLAG_KEY = "companions";
@@ -7,10 +8,8 @@ export class TamerRecords {
   static isTamer(actor) {
     return Boolean(actor?.items?.some(item =>
       item.type === "class" &&
-      (
-        String(item.name ?? "").trim().toLowerCase() === "tamer" ||
-        String(item.system?.identifier ?? "").trim().toLowerCase() === "tamer"
-      )
+      (String(item.name ?? "").trim().toLowerCase() === "tamer" ||
+       String(item.system?.identifier ?? "").trim().toLowerCase() === "tamer")
     ));
   }
 
@@ -21,30 +20,40 @@ export class TamerRecords {
 
   static async write(actor, companions) {
     if (!actor?.setFlag || !this.isTamer(actor)) return false;
-    const normalized = companions
-      .map(record => CompanionRecord.normalize(record))
-      .filter(Boolean);
+    const normalized = companions.map(record => CompanionRecord.normalize(record)).filter(Boolean);
     await actor.setFlag(MODULE_ID, FLAG_KEY, normalized);
     return true;
   }
 
+  // Shared preflight for the UI and data layer. Adding a record is a live
+  // companion-management operation, so it must not bypass access/progression
+  // or CR/size eligibility validation.
+  static async previewAdd(actor, companion) {
+    if (!this.isTamer(actor) || !companion) {
+      return { eligible: false, reason: "missing-tamer-or-companion" };
+    }
+    if (!companion.uuid) return { eligible: false, reason: "missing-companion-uuid" };
+    if (this.read(actor).some(record => record.actorUuid === companion.uuid)) {
+      return { eligible: false, reason: "already-registered" };
+    }
+    return CompanionInitialization.planWithAccess({ owner: actor, companion });
+  }
+
   static async add(actor, companion) {
-    if (!this.isTamer(actor) || !companion) return null;
+    const preview = await this.previewAdd(actor, companion);
+    if (!preview.eligible) return null;
 
     const records = this.read(actor);
     const actorUuid = companion.uuid ?? null;
     if (!actorUuid) return null;
-
     const existing = records.find(record => record.actorUuid === actorUuid);
     if (existing) return existing;
 
-    const id = foundry.utils.randomID();
     const record = CompanionRecord.create({
-      id,
+      id: foundry.utils.randomID(),
       name: companion.name ?? "Companion",
       actorUuid
     });
-
     records.push(record);
     await this.write(actor, records);
     return record;
@@ -52,11 +61,9 @@ export class TamerRecords {
 
   static async remove(actor, recordId) {
     if (!this.isTamer(actor)) return false;
-
     const records = this.read(actor);
     const filtered = records.filter(record => String(record.id) !== String(recordId));
     if (filtered.length === records.length) return false;
-
     await this.write(actor, filtered);
     return true;
   }
