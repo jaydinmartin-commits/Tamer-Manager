@@ -61,7 +61,8 @@
                 <div class="tamer-manager__improvements">
                   <span class="tamer-manager__stat-label">IMPROVEMENTS</span>
                   <strong>{{improvementProgressLabel}}</strong>
-                  <span>Choose improvements on the companion sheet</span>
+                  <span>Choose improvements from the configured options</span>
+                  <button type="button" data-action="manageImprovements" data-record-id="{{id}}" title="Manage companion improvements"><i class="fa-solid fa-list-check"></i> Manage</button>
                 </div>
               {{else}}
                 <span class="tamer-manager__missing">Actor reference unavailable — relationship preserved</span>
