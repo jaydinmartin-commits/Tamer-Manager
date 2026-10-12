@@ -160,7 +160,7 @@ await test("initialization recovery repairs a failed relationship write without 
   globalThis.Roll = class { constructor(formula) { this.formula = formula; } async evaluate() { return { total: 4 }; } };
   try {
     const first = await TamerRecords.add(tamer, companion);
-    assert(!first.record && first.reason === "companion-record-persistence-failed", "First attempt should report relationship write failure.");
+    assert(!first.record && first.reason === "companion-record-persistence-failed", `First attempt should report relationship write failure; got ${JSON.stringify(first)}.`);
     assert(TamerRecords.read(tamer).length === 0, "Failed write must not claim a saved relationship.");
     const hitDiceAfterFirst = companion.system.attributes.hd.max;
     assert((companionFlags["tamer-manager.companionInitializationApplications"] ?? []).length === 1, "Initialization ledger should be committed.");
