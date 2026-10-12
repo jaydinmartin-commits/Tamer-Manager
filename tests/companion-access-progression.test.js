@@ -5,6 +5,7 @@ import { CompanionAccessAdapters } from "../scripts/data/companion-access-adapte
 import { TamerAccessPreview } from "../scripts/data/tamer-access-preview.js";
 import { TamerCompanionSummary } from "../scripts/data/tamer-companion-summary.js";
 import { TamerProgressionProvider } from "../scripts/data/tamer-progression-provider.js";
+import { CompanionInitialization } from "../scripts/data/companion-initialization.js";
 
 if (!globalThis.foundry) {
   globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
@@ -168,6 +169,38 @@ await test("shared Tamer progression provider resolves only valid levels", async
     sources: [{ ...context.sources[0], metadata: { classLevel: 0 } }]
   });
   assert(!invalid.valid && invalid.reason === "invalid-tamer-level", "Invalid level must fail closed.");
+});
+
+await test("initialization planning requires shared access and matching progression", async () => {
+  const owner = {
+    uuid: "Actor.owner",
+    system: { attributes: { prof: 2 } },
+    items: [{
+      uuid: "Actor.owner.Item.tamer",
+      type: "class",
+      name: "Tamer",
+      system: { identifier: "tamer", levels: 3 }
+    }]
+  };
+  const companion = {
+    system: {
+      details: { cr: 0.25 },
+      attributes: { hd: { denomination: 8 } },
+      abilities: { con: { mod: 2 } },
+      identifier: "test-companion"
+    }
+  };
+  const result = await CompanionInitialization.planWithAccess({ owner, companion });
+  assert(result.eligible, "Expected valid Tamer access to produce an initialization plan.");
+  assert(result.tamerLevel === 3, "Expected plan to preserve Tamer level.");
+  assert(result.accessContext.ownerUuid === owner.uuid, "Expected resolved access context in plan.");
+
+  const invalidOwner = {
+    ...owner,
+    items: [{ ...owner.items[0], system: { identifier: "tamer", levels: 0 } }]
+  };
+  const invalid = await CompanionInitialization.planWithAccess({ owner: invalidOwner, companion });
+  assert(!invalid.eligible && invalid.reason === "invalid-progression", "Invalid progression must block initialization.");
 });
 
 await test("Tamer summary rejects out-of-range levels", () => {
