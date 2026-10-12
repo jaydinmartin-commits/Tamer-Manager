@@ -51,8 +51,12 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _prepareContext() {
     const records = this.tamer ? TamerRecords.read(this.tamer) : [];
-    const companions = records.map(record => {
-      const actor = record.actorUuid ? game.actors?.get?.(record.actorUuid) : null;
+    const companions = await Promise.all(records.map(async record => {
+      let actor = null;
+      if (record.actorUuid) {
+        try { actor = await fromUuid(record.actorUuid); }
+        catch { actor = null; }
+      }
       return {
         ...record,
         actorName: actor?.name ?? record.name ?? "Missing companion Actor",
@@ -63,7 +67,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         hitPoints: actor?.system?.attributes?.hp?.value ?? null,
         hitPointsMax: actor?.system?.attributes?.hp?.max ?? null
       };
-    });
+    }));
     return { moduleId: MODULE_ID, tamer: this.tamer, companions,
       hasTamer: Boolean(this.tamer), canManage: Boolean(this.tamer && TamerRecords.isTamer(this.tamer)) };
   }
