@@ -83,6 +83,9 @@ export const CompanionOptionStore = Object.freeze({
   },
   get(id) { return readStore().definitions.find(definition => definition.id === String(id)) ?? null; },
   async write(definitions) {
+    // Read/validate the current persisted envelope before any overwrite. This prevents
+    // a newer or malformed schema from being replaced by an older module version.
+    readStore();
     const normalized = normalizeDefinitions(definitions);
     const store = { schemaVersion: SCHEMA_VERSION, definitions: normalized };
     await game.settings.set(MODULE_ID, SETTING_KEY, store);
