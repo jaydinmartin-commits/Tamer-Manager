@@ -34,10 +34,20 @@ export const CompanionAccessContext = Object.freeze({
   create({ ownerUuid, owner = null, sources = [], companionId = null } = {}) {
     const normalizedOwnerUuid = cleanString(ownerUuid || owner?.uuid);
     if (!normalizedOwnerUuid) throw new Error("Companion access requires an owner Actor UUID.");
+    if (!Array.isArray(sources)) throw new Error("Companion access sources must be an array.");
 
-    const normalizedSources = (Array.isArray(sources) ? sources : [])
-      .map(normalizeSource)
-      .filter(Boolean);
+    const normalizedSources = sources.map((source, index) => {
+      const normalized = normalizeSource(source);
+      if (!normalized) {
+        throw new Error(`Companion access source at index ${index} is invalid.`);
+      }
+      return normalized;
+    });
+
+    const sourceIds = normalizedSources.map(source => source.id);
+    if (new Set(sourceIds).size !== sourceIds.length) {
+      throw new Error("Companion access source IDs must be unique.");
+    }
 
     return {
       ownerUuid: normalizedOwnerUuid,
