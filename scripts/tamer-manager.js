@@ -101,7 +101,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static async chooseActor() {
     const existing = new Set(TamerRecords.read(this.tamer).map(record => record.actorUuid));
-    const candidates = (game.actors?.contents ?? []).filter(actor => actor !== this.tamer && !existing.has(actor.uuid));
+    const candidates = (game.actors?.contents ?? []).filter(actor => actor !== this.tamer && actor.type === "npc" && !existing.has(actor.uuid));
     if (!candidates.length) {
       ui.notifications.warn("No eligible unregistered Actor documents are available to add.");
       return null;
@@ -157,6 +157,19 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
   static async _onRemoveCompanion(event, target) {
     const recordId = target?.dataset?.recordId;
     if (!recordId || !this.tamer) return;
+    const record = TamerRecords.read(this.tamer).find(item => item.id === recordId);
+    if (!record) {
+      ui.notifications.warn("That companion relationship no longer exists.");
+      await this.render({ force: true });
+      return;
+    }
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: "Unlink Companion" },
+      content: `<p>Unlink <strong>${foundry.utils.escapeHTML(record.name || "this companion")}</strong> from ${foundry.utils.escapeHTML(this.tamer.name)}?</p><p>This removes only the relationship. It does not delete the Actor or reverse previously applied initialization benefits.</p>`,
+      yes: { label: "Unlink companion" },
+      no: { label: "Cancel" }
+    });
+    if (!confirmed) return;
     const removed = await TamerRecords.remove(this.tamer, recordId);
     if (removed) await this.render({ force: true });
   }
