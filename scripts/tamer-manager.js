@@ -170,8 +170,19 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       no: { label: "Cancel" }
     });
     if (!confirmed) return;
-    const removed = await TamerRecords.remove(this.tamer, recordId);
-    if (removed) await this.render({ force: true });
+    try {
+      const removed = await TamerRecords.remove(this.tamer, recordId);
+      if (removed) {
+        ui.notifications.info("Companion unlinked. The Actor itself was not deleted.");
+        await this.render({ force: true });
+      } else {
+        ui.notifications.warn("The companion relationship was not changed. Refresh the manager and try again.");
+      }
+    } catch (error) {
+      console.error("Tamer Manager | Failed to persist companion unlink.", error);
+      ui.notifications.error("Could not save the unlink. The relationship has been kept; refresh before retrying.");
+      await this.render({ force: true });
+    }
   }
 }
 globalThis.TamerManager = TamerManager;
