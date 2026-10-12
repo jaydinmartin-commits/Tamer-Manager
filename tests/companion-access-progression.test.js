@@ -201,6 +201,18 @@ await test("initialization planning requires shared access and matching progress
   };
   const invalid = await CompanionInitialization.planWithAccess({ owner: invalidOwner, companion });
   assert(!invalid.eligible && invalid.reason === "invalid-progression", "Invalid progression must block initialization.");
+
+  const unauthorized = await CompanionInitialization.planWithAccess({
+    owner: { uuid: "Actor.no-tamer", items: [] },
+    companion
+  });
+  assert(!unauthorized.eligible, "An owner without a supported access source must be blocked.");
+
+  const unsupportedCR = await CompanionInitialization.planWithAccess({
+    owner,
+    companion: { ...companion, system: { ...companion.system, details: { cr: 1.5 } } }
+  });
+  assert(!unsupportedCR.eligible, "An unsupported CR band must not create an eligible initialization plan.");
 });
 
 await test("Tamer summary rejects out-of-range levels", () => {
