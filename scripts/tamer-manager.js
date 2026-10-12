@@ -68,6 +68,16 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       hasTamer: Boolean(this.tamer), canManage: Boolean(this.tamer && TamerRecords.isTamer(this.tamer)) };
   }
 
+  static async openFor(tamer) {
+    if (!tamer || !TamerRecords.isTamer(tamer)) {
+      ui.notifications.warn("Open Companion Manager from a character with the Tamer class.");
+      return null;
+    }
+    const app = new this({ tamer });
+    await app.render({ force: true });
+    return app;
+  }
+
   static async chooseTamer() {
     const candidates = (game.actors?.contents ?? []).filter(TamerRecords.isTamer);
     if (candidates.length === 1) return candidates[0];
