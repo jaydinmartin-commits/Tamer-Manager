@@ -187,7 +187,8 @@ await test("initialization planning requires shared access and matching progress
       details: { cr: 0.5 },
       attributes: { hd: { denomination: 8 } },
       abilities: { con: { mod: 2 } },
-      identifier: "test-companion"
+      identifier: "test-companion",
+      traits: { size: "tiny" }
     }
   };
   const result = await CompanionInitialization.planWithAccess({ owner, companion });
@@ -213,6 +214,20 @@ await test("initialization planning requires shared access and matching progress
     companion: { ...companion, system: { ...companion.system, details: { cr: 1.5 } } }
   });
   assert(!unsupportedCR.eligible, "A CR above the Tamer limit must not create an eligible initialization plan.");
+
+  const oversized = await CompanionInitialization.planWithAccess({
+    owner,
+    companion: { ...companion, system: { ...companion.system, traits: { size: "medium" } } }
+  });
+  assert(!oversized.eligible && oversized.reason === "size-exceeds-tamer-limit",
+    "A companion above the Tamer's size limit must not create an eligible initialization plan.");
+
+  const invalidSize = await CompanionInitialization.planWithAccess({
+    owner,
+    companion: { ...companion, system: { ...companion.system, traits: { size: "invalid-size" } } }
+  });
+  assert(!invalidSize.eligible && invalidSize.reason === "missing-or-invalid-companion-size",
+    "A companion with invalid size data must fail closed.");
 });
 
 await test("Tamer summary rejects out-of-range levels", () => {
