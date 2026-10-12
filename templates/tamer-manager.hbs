@@ -40,8 +40,8 @@
                 </div>
                 <div class="tamer-manager__status">
                   <span class="tamer-manager__stat-label">CHALLENGE RATING</span>
-                  <strong>{{#if challengeRating}}CR {{challengeRating}}{{else}}—{{/if}}</strong>
-                  {{#if size}}<span>{{size}}</span>{{/if}}
+                  <strong>{{challengeRatingLabel}}</strong>
+                  {{#if sizeLabel}}<span>{{sizeLabel}}</span>{{/if}}
                 </div>
                 <div class="tamer-manager__status">
                   <span class="tamer-manager__stat-label">VESSEL</span>
@@ -50,7 +50,7 @@
                 </div>
                 <div class="tamer-manager__improvements">
                   <span class="tamer-manager__stat-label">IMPROVEMENTS</span>
-                  <strong>{{selectedImprovements}} / {{#if availableImprovements}}{{availableImprovements}}{{else}}—{{/if}}</strong>
+                  <strong>{{improvementProgressLabel}}</strong>
                   <span>Choose improvements on the companion sheet</span>
                 </div>
               {{else}}
