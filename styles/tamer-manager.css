@@ -36,6 +36,17 @@
   letter-spacing: normal;
 }
 .tamer-manager .tamer-manager__status > span:last-child,
+.tamer-manager .tamer-manager__vessel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+.tamer-manager .tamer-manager__vessel-actions button {
+  min-height: 1.65rem;
+  font-size: 0.68rem;
+  padding: 0.1rem 0.35rem;
+}
 .tamer-manager .tamer-manager__improvements > span:last-child {
   font-size: 0.68rem;
   opacity: 0.75;
