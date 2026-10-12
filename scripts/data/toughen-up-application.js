@@ -28,22 +28,27 @@ function getHitPoints(actor) {
 
 function getUpdatedNpcFormula(formula, constitutionModifier) {
   if (typeof formula !== "string") return null;
-  const match = formula.trim().match(/^([0-9]*)d([0-9]+)(.*)$/i);
+
+  // Only transform a single die term with an optional fixed integer modifier.
+  // Dynamic expressions, extra dice, and other formula syntax must fail closed
+  // rather than risk changing the meaning of the NPC's HP formula.
+  const match = formula.trim().match(/^([0-9]*)d([0-9]+)(?:\s*([+-])\s*([0-9]+))?\s*$/i);
   if (!match) return null;
+
   const count = Number(match[1] || 1);
   const faces = Number(match[2]);
   if (!Number.isInteger(count) || count < 1 || !Number.isInteger(faces) || faces < 2) return null;
-  let suffix = match[3] ?? "";
-  const trailingConstant = suffix.match(/^(.*?)([+-])([0-9]+)\s*$/);
-  if (trailingConstant) {
-    const base = trailingConstant[1];
-    const sign = trailingConstant[2] === "-" ? -1 : 1;
-    const value = sign * Number(trailingConstant[3]) + constitutionModifier;
-    suffix = value === 0 ? base : `${base}${value < 0 ? "-" : "+"}${Math.abs(value)}`;
-  } else if (constitutionModifier !== 0) {
-    suffix += constitutionModifier < 0 ? String(constitutionModifier) : `+${constitutionModifier}`;
-  }
-  return `${count + 1}d${faces}${suffix}`;
+
+  const sign = match[3] === "-" ? -1 : 1;
+  const existingModifier = match[4] == null ? 0 : sign * Number(match[4]);
+  const updatedModifier = existingModifier + constitutionModifier;
+  const suffix = updatedModifier === 0
+    ? ""
+    : updatedModifier < 0
+      ? String(updatedModifier)
+      : "+" + updatedModifier;
+
+  return (count + 1) + "d" + faces + suffix;
 }
 
 function getLedger(actor) {
