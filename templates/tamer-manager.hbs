@@ -4,6 +4,7 @@
       <h2>Companion Manager</h2>
       {{#if hasTamer}}
         <p class="tamer-manager__tamer">Managing companions for <strong>{{tamer.name}}</strong></p>
+        <p class="tamer-manager__capacity">POCKET FAMILY <strong>{{companionCount}} / {{#if maxCompanions}}{{maxCompanions}}{{else}}—{{/if}}</strong></p>
       {{else}}
         <p class="tamer-manager__tamer">No Tamer selected</p>
       {{/if}}
@@ -44,11 +45,13 @@
                 </div>
                 <div class="tamer-manager__status">
                   <span class="tamer-manager__stat-label">VESSEL</span>
-                  <strong>No vessel assigned</strong>
+                  <strong>{{vesselName}}</strong>
+                  <span>{{statusLabel}}</span>
                 </div>
                 <div class="tamer-manager__improvements">
                   <span class="tamer-manager__stat-label">IMPROVEMENTS</span>
-                  <strong>Manage on companion sheet</strong>
+                  <strong>{{selectedImprovements}} / {{#if availableImprovements}}{{availableImprovements}}{{else}}—{{/if}}</strong>
+                  <span>Choose improvements on the companion sheet</span>
                 </div>
               {{else}}
                 <span class="tamer-manager__missing">Actor reference unavailable — relationship preserved</span>
