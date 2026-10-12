@@ -1,3 +1,5 @@
+import { CompanionAccessContext } from "./companion-access-context.js";
+
 const ACCESS_OPERATIONS = Object.freeze({
   OPEN_MANAGER: "open-manager",
   MANAGE_COMPANIONS: "manage-companions",
@@ -60,7 +62,6 @@ export const CompanionAccessResolver = Object.freeze({
     }
 
     try {
-      const { CompanionAccessContext } = await import("./companion-access-context.js");
       const context = CompanionAccessContext.create({
         ownerUuid: owner.uuid,
         companionId,
