@@ -71,6 +71,18 @@ await test("option store round-trips valid definitions", async () => {
   assert(CompanionOptionStore.get("steady")?.name === "steady", "Stored definition did not round-trip.");
 });
 
+await test("option store preserves unrecognized extension fields", async () => {
+  const extended = { ...option("extended"), vendorExtension: { preserved: true, version: 2 } };
+  await CompanionOptionStore.write([extended]);
+  const stored = CompanionOptionStore.get("extended");
+  assert(stored?.vendorExtension?.preserved === true && stored.vendorExtension.version === 2,
+    "Unknown extension data was silently discarded.");
+  await CompanionOptionStore.write([stored]);
+  assert(CompanionOptionStore.get("extended")?.vendorExtension?.version === 2,
+    "Extension data was lost during a read/write cycle.");
+  await CompanionOptionStore.write([option("steady")]);
+});
+
 await test("option store refuses to silently drop malformed records", async () => {
   await assertRejects(() => CompanionOptionStore.write([option("safe"), { nope: true }]),
     "Malformed option record should reject the whole write.");
