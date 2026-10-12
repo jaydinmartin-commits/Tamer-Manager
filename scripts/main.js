@@ -54,10 +54,11 @@ Hooks.once("init", () => {
     restricted: true
   });
 
-  // Foundry v14 ApplicationV2 uses class-specific getHeaderControls hooks.
-  // D&D 5e v6 character sheets derive from ActorSheetV2; use that documented parent hook
-  // so the menu entry also works for subclasses without guessing system-specific class names.
-  Hooks.on("getHeaderControlsActorSheetV2", (app, controls) => {
+  // Foundry v14 dispatches ApplicationV2 header controls through class-specific hooks.
+  // D&D 5e v6's CharacterActorSheet extends BaseActorSheet, which in turn extends
+  // foundry.applications.sheets.ActorSheetV2. Register the concrete system class hook
+  // and the core base hook for compatibility with sheets using the base class directly.
+  const addCompanionManagerHeaderControl = (app, controls) => {
     const actor = app?.document ?? app?.actor ?? app?.object;
     if (!actor || !TamerRecords.isTamer(actor) || !Array.isArray(controls)) return;
     if (controls.some(control => control.action === "openTamerCompanionManager")) return;
@@ -68,7 +69,9 @@ Hooks.once("init", () => {
       visible: true,
       onClick: () => TamerManager.openFor(actor)
     });
-  });
+  };
+  Hooks.on("getHeaderControlsCharacterActorSheet", addCompanionManagerHeaderControl);
+  Hooks.on("getHeaderControlsActorSheetV2", addCompanionManagerHeaderControl);
 
   game.modules.get(MODULE_ID).api = {
     TamerManager,
