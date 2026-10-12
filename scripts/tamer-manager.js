@@ -246,6 +246,10 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
 
+    if (records.some(item => item.id !== recordId && item.actorUuid === record.actorUuid && item.status === "summoned")) {
+      ui.notifications.warn("Another relationship already marks this companion Actor as summoned. Resolve the duplicate record before summoning again.");
+      return;
+    }
     const actor = await fromUuid(record.actorUuid).catch(() => null);
     if (!actor || actor.type !== "npc") {
       ui.notifications.warn("The companion Actor could not be found or is no longer an NPC.");
