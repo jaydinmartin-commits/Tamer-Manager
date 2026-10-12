@@ -10,7 +10,6 @@ function emptyStore() { return { schemaVersion: SCHEMA_VERSION, trees: [] }; }
 function validateTrees(trees, definitions = CompanionOptionStore.read().definitions) {
   if (!Array.isArray(trees)) throw new Error("Companion trees must be an array.");
   const ids = new Set();
-  const optionIds = new Set(definitions.map(option => option.id));
   const errors = [];
   for (const tree of trees) {
     if (!tree || typeof tree !== "object" || Array.isArray(tree)) {
@@ -60,6 +59,8 @@ export const CompanionTreeStore = Object.freeze({
   get(id) { return this.list().find(tree => tree.id === String(id)) ?? null; },
   validate(trees) { validateTrees(trees, CompanionOptionStore.read().definitions); return true; },
   async write(trees) {
+    // Refuse to overwrite malformed or future-version persisted tree data.
+    this.read();
     if (!game.user?.isGM) throw new Error("Only a GM may modify companion trees.");
     const normalized = trees.map((tree, index) => {
       if (!tree || typeof tree !== "object" || Array.isArray(tree) || !tree.id) throw new Error(`Companion tree at index ${index} is malformed.`);
