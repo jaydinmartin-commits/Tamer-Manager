@@ -60,7 +60,8 @@ export const TamerAccessPreview = Object.freeze({
         maxSize: progression.maxSize,
         maxCR: progression.maxCR
       } : null,
-      errors: []
+      errors: [],
+      reason: progression ? null : "invalid-tamer-level"
     };
   }
 });
