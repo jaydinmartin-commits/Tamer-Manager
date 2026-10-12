@@ -2,13 +2,6 @@ import { CompanionAccessResolver } from "./companion-access-resolver.js";
 import { CompanionAccessAdapters } from "./companion-access-adapters.js";
 import { TamerProgressionProvider } from "./tamer-progression-provider.js";
 
-function isTamerClass(item) {
-  return item?.type === "class" && (
-    String(item.name ?? "").trim().toLowerCase() === "tamer" ||
-    String(item.system?.identifier ?? "").trim().toLowerCase() === "tamer"
-  );
-}
-
 export const TamerAccessPreview = Object.freeze({
   async resolve(owner, { companionId = null } = {}) {
     if (!owner?.uuid || !Array.isArray(owner.items)) {
