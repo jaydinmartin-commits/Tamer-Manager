@@ -47,7 +47,9 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
       ui.notifications.warn("Only a GM can open Development & Testing.");
       return null;
     }
-    return new this().render({ force: true });
+    const app = new this();
+    app.render({ force: true });
+    return app;
   }
 
   async _prepareContext() {
@@ -70,12 +72,12 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
 
   async _onRefresh() { this.report = null; this.lastPlan = null; await this.render({ force: true }); }
   async _onOpenOwner(event, target) {
-    const actor = await fromUuid(target?.form?.elements?.owner?.value ?? "").catch(() => null);
-    actor?.sheet?.render(true);
+    const { owner } = await this._selectedActors(target);
+    owner?.sheet?.render(true);
   }
   async _onOpenCompanion(event, target) {
-    const actor = await fromUuid(target?.form?.elements?.companion?.value ?? "").catch(() => null);
-    actor?.sheet?.render(true);
+    const { companion } = await this._selectedActors(target);
+    companion?.sheet?.render(true);
   }
 
   async _selectedActors(target) {
