@@ -42,6 +42,12 @@ function normalizeLevel(level) {
 }
 
 function normalizeCR(cr) {
+  if (typeof cr === "string" && /^\s*\d+\s*\/\s*\d+\s*$/.test(cr)) {
+    const [numerator, denominator] = cr.split("/").map(value => Number(value.trim()));
+    if (denominator === 0) return null;
+    const value = numerator / denominator;
+    return Number.isFinite(value) ? value : null;
+  }
   const value = Number(cr);
   return Number.isFinite(value) ? value : null;
 }
@@ -63,7 +69,7 @@ function getCompanionCR(actor) {
 
 function getCRBand(cr) {
   const value = normalizeCR(cr);
-  return CR_BANDS.find(band => value >= band.min && value <= band.max) ?? null;
+  // The lowest training tier includes all creatures below CR 1/2, not just CR 1/2 itself.\n  if (value >= 0 && value < 0.5) return CR_BANDS[0];\n  return CR_BANDS.find(band => value >= band.min && value <= band.max) ?? null;
 }
 
 function getSummary(level) {
