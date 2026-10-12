@@ -35,7 +35,7 @@ await test("access context normalizes source data and unique permissions", () =>
       type: "class",
       documentUuid: "Actor.owner.Item.tamer",
       allowedOperations: ["open", "bond", "open"],
-      progressionProviderIds: ["tamer", "tamer"],
+      progressionProviderIds: ["tamer-class", "tamer-class"],
       metadata: { level: 3 }
     }]
   });
@@ -71,7 +71,7 @@ await test("access resolver combines independently validated sources", async () 
           type: "class",
           documentUuid: "Actor.owner.Item.tamer",
           allowedOperations: [CompanionAccessResolver.operations.OPEN_MANAGER],
-          progressionProviderIds: ["tamer"],
+          progressionProviderIds: ["tamer-class"],
           metadata: {}
         }
       })
@@ -97,8 +97,8 @@ await test("progression fails closed when provider is missing", async () => {
 
 await test("progression accepts matching provider result", async () => {
   const provider = CompanionProgression.createProvider({
-    id: "tamer",
-    resolve: async () => ({ providerId: "tamer", valid: true, level: 3 })
+    id: "tamer-class",
+    resolve: async () => ({ providerId: "tamer-class", valid: true, level: 3 })
   });
   const result = await CompanionProgression.resolveAll({ progressionProviderIds: ["tamer"] }, [provider]);
   assert(result.valid, "Expected matching provider result to be valid.");
