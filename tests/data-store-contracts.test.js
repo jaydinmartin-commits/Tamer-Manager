@@ -2,6 +2,7 @@ import { CompanionOptionStore } from "../scripts/data/companion-option-store.js"
 import { CompanionOptionValidator } from "../scripts/data/companion-option-validator.js";
 import { CompanionTreeStore } from "../scripts/data/companion-tree-store.js";
 import { TamerRecords } from "../scripts/data/tamer-records.js";
+import { CompanionInitializationApplication } from "../scripts/data/companion-initialization-application.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
 
@@ -159,10 +160,17 @@ await test("initialization recovery repairs a failed relationship write without 
   globalThis.foundry.utils.randomID = () => `test-${Math.random().toString(36).slice(2)}`;
   globalThis.Roll = class { constructor(formula) { this.formula = formula; } async evaluate() { return { total: 4 }; } };
   try {
-    const first = await TamerRecords.add(tamer, companion);
-    assert(!first.record && first.reason === "companion-record-persistence-failed", `First attempt should report relationship write failure; got ${JSON.stringify(first)}.`);
-    assert(TamerRecords.read(tamer).length === 0, "Failed write must not claim a saved relationship.");
+    const applicationId = `${tamer.uuid}::${companion.uuid}::initialization-v1`;
+    const initialization = await CompanionInitializationApplication.apply({
+      owner: tamer, companion, applicationId,
+      plan: { eligible: true, training: { hitDice: 1 } }
+    });
+    assert(initialization.applied && initialization.verified, `Fixture initialization should commit; got ${JSON.stringify(initialization)}.`);
     const hitDiceAfterFirst = companion.system.attributes.hd.max;
+    failRelationshipWrite = true;
+    const first = await TamerRecords.add(tamer, companion);
+    assert(!first.record && first.reason === "companion-record-persistence-failed", `First recovery attempt should report relationship write failure; got ${JSON.stringify(first)}.`);
+    assert(TamerRecords.read(tamer).length === 0, "Failed write must not claim a saved relationship.");
     assert((companionFlags["tamer-manager.companionInitializationApplications"] ?? []).length === 1, "Initialization ledger should be committed.");
     const second = await TamerRecords.add(tamer, companion);
     assert(second.record && second.initialization?.recovered, "Retry should recover the relationship from the ledger.");
