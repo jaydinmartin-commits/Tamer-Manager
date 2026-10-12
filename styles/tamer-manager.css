@@ -22,6 +22,24 @@
   margin: 0;
 }
 
+.tamer-manager .tamer-manager__capacity {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin: 0.3rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.tamer-manager .tamer-manager__capacity strong {
+  font-size: 0.85rem;
+  letter-spacing: normal;
+}
+.tamer-manager .tamer-manager__status > span:last-child,
+.tamer-manager .tamer-manager__improvements > span:last-child {
+  font-size: 0.68rem;
+  opacity: 0.75;
+}
 .tamer-manager .tamer-manager__tamer {
   margin: 0.25rem 0 0;
 }
