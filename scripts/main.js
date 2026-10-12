@@ -54,6 +54,41 @@ Hooks.once("init", () => {
     restricted: true
   });
 
+  // Foundry V2 sheets expose their header controls through application-class hooks.
+  // Keep this integration thin: the manager itself owns all companion logic and persistence.
+  const openManagerFromSheet = app => {
+    const actor = app?.document ?? app?.actor ?? app?.object;
+    if (!actor || !TamerRecords.isTamer(actor)) return;
+    const entry = {
+      action: "openTamerCompanionManager",
+      label: "Companion Manager",
+      icon: "fa-solid fa-paw",
+      visible: true,
+      onClick: () => TamerManager.openFor(actor)
+    };
+    const controls = arguments;
+  };
+  for (const hookName of [
+    "getHeaderControlsActorSheet",
+    "getHeaderControlsActorSheet5eCharacter",
+    "getHeaderControlsActorSheet5eCharacter2",
+    "getHeaderControlsActorSheet5eNPC",
+    "getHeaderControlsActorSheet5eNPC2"
+  ]) {
+    Hooks.on(hookName, (app, controls) => {
+      const actor = app?.document ?? app?.actor ?? app?.object;
+      if (!actor || !TamerRecords.isTamer(actor) || !Array.isArray(controls)) return;
+      if (controls.some(control => control.action === "openTamerCompanionManager")) return;
+      controls.push({
+        action: "openTamerCompanionManager",
+        label: "Companion Manager",
+        icon: "fa-solid fa-paw",
+        visible: true,
+        onClick: () => TamerManager.openFor(actor)
+      });
+    });
+  }
+
   game.modules.get(MODULE_ID).api = {
     TamerManager,
     TamerDevelopmentPanel,
