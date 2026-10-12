@@ -1,4 +1,9 @@
 import { TamerCompanionSummary } from "./tamer-companion-summary.js";
+import { CompanionAccessResolver } from "./companion-access-resolver.js";
+import { CompanionAccessContext } from "./companion-access-context.js";
+import { CompanionAccessAdapters } from "./companion-access-adapters.js";
+import { CompanionProgression } from "./companion-progression.js";
+import { TamerProgressionProvider } from "./tamer-progression-provider.js";
 
 const LOST_TRAIT_CATEGORIES = Object.freeze([
   "spellcasting",
@@ -71,6 +76,41 @@ export const CompanionInitialization = Object.freeze({
 
   sharedResilienceLevels() {
     return [...SHARED_RESILIENCE_LEVELS];
+  },
+
+  async planWithAccess({ owner, companion, bespoke = false, bonusImprovementIds = [] } = {}) {
+    if (!owner?.uuid || !companion) {
+      return { eligible: false, reason: "missing-owner-or-companion" };
+    }
+
+    const access = await CompanionAccessResolver.resolve({
+      owner,
+      adapters: [CompanionAccessAdapters.tamerClass(owner)]
+    });
+    if (!access.valid) {
+      return { eligible: false, reason: "invalid-access-context", errors: access.errors };
+    }
+    if (!CompanionAccessContext.can(access.context, CompanionAccessResolver.operations.MANAGE_COMPANIONS)) {
+      return { eligible: false, reason: "missing-companion-management-access" };
+    }
+
+    const progression = await CompanionProgression.resolveAll(
+      access.context,
+      [TamerProgressionProvider]
+    );
+    if (!progression.valid || progression.results.length !== 1) {
+      return {
+        eligible: false,
+        reason: "invalid-progression",
+        errors: progression.errors
+      };
+    }
+
+    const plan = this.plan({ tamer: owner, companion, bespoke, bonusImprovementIds });
+    if (plan.eligible && plan.tamerLevel !== progression.results[0].level) {
+      return { eligible: false, reason: "progression-level-mismatch" };
+    }
+    return { ...plan, accessContext: access.context };
   },
 
   plan({ tamer, companion, bespoke = false, bonusImprovementIds = [] } = {}) {
