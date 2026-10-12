@@ -14,6 +14,19 @@
 - Preserve the current manager-card layout unless the future appearance settings deliberately change it. Put companion choices on the companion sheet when requested.
 - Keep this module's design and content isolated from other homebrew projects unless the user explicitly requests crossover.
 
+## Current implementation audit
+
+This is a source review of the current default branch, not a claim that every scenario has been exercised in Foundry.
+
+- `TamerRecords.isTamer` currently gates both reads and writes on the presence of a Tamer class Item. That is safe for the current narrow feature set, but it cannot yet represent feat/item-granted management access.
+- `TamerManager` currently selects a Tamer Actor and adds Actors from the world collection. GM-configured compendium sources and drag/drop bonding are not implemented in the inspected code.
+- `CompanionOptions.isAvailable` currently requires a Tamer context and may resolve a companion UUID synchronously when checking identifiers. A future shared resolver should pass resolved document/context data through a single evaluation rather than repeatedly resolving the same UUID in option checks.
+- `CompanionInitialization.plan` currently requires a Tamer and derives training from Tamer progression. Bespoke and feature-granted companions need explicit progression providers rather than treating the existing Tamer plan as universal.
+- `CompanionOptionDefinition` currently supports only `improvement` and `augment`. Its current fields provide a starting point for costs, repeatability, prerequisites, replacements, and tree IDs, but do not yet encode the complete set of access-source, progression-provider, universal-option, infusion, compendium-source, or appearance settings.
+- `CompanionRecord` normalizes current companion state including improvements, vessel references, and Splicer augment data. It does not yet define a versioned access-source/owner model for non-Tamer entry points.
+
+**Implication:** do not simply remove the Tamer check or expand the option type enum and immediately wire new features into it. First define read-only access/progression contracts and migration rules; then integrate each entry point behind its own validated adapter.
+
 ## Separate access from companion identity
 
 A companion must not be assumed to belong to a Tamer. The current Tamer-only record gate is an initial limitation, not the final authorization model.
