@@ -6,6 +6,15 @@ const ADD_REASONS = {
   "missing-tamer-or-companion": "A Tamer and companion Actor are required.",
   "missing-companion-uuid": "The selected Actor cannot be referenced as a companion.",
   "already-registered": "That Actor is already registered as a companion.",
+  "unsupported-companion-actor-type": "Only NPC Actors can be initialized as companions.",
+  "unsupported-hit-die-data": "The companion hit-die data is not in a supported format.",
+  "unsupported-hit-point-data": "The companion hit-point data is not in a supported format.",
+  "missing-constitution-modifier": "The companion has no valid Constitution modifier.",
+  "unsupported-or-inconsistent-hp-formula": "The companion HP formula is not safely compatible with automatic hit-die scaling.",
+  "already-applied": "This companion has already received its initialization benefits.",
+  "initialization-application-failed": "The companion initialization could not be applied and verified.",
+  "post-update-verification-failed": "The initialization update could not be verified; check the companion before retrying.",
+  "companion-record-persistence-failed": "Initialization was applied, but the companion record could not be saved. Check the manager before retrying.",
   "missing-owner-or-companion": "A Tamer and companion Actor are required.",
   "invalid-access-context": "Companion management access could not be validated.",
   "missing-companion-management-access": "This character does not have permission to manage companions.",
@@ -99,9 +108,10 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
 
-    const record = await TamerRecords.add(this.tamer, actor);
-    if (!record) {
-      ui.notifications.error("The companion could not be added after its eligibility check.");
+    const result = await TamerRecords.add(this.tamer, actor);
+    if (!result?.record) {
+      ui.notifications.error(ADD_REASONS[result?.reason] ??
+        `The companion could not be initialized (${result?.reason ?? "initialization-failed"}).`);
       return;
     }
     await this.render({ force: true });
