@@ -64,7 +64,7 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
       selectedCompanionUuid: companion?.uuid ?? "",
       ownerName: owner?.name ?? "Not selected",
       companionName: companion?.name ?? "Not selected",
-      report: this.report,
+      report: this.report ? { ...this.report, isPassed: this.report.status === "passed" } : null,
       canApply: Boolean(this.lastPlan?.eligible && owner && companion && !this.busy),
       busy: this.busy
     };
