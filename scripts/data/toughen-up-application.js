@@ -23,7 +23,27 @@ function getHitPoints(actor) {
   const value = finiteNumber(hp?.value);
   const maximum = finiteNumber(hp?.max);
   if (value == null || maximum == null || maximum < 0 || value < 0) return null;
-  return { value, maximum };
+  return { value, maximum, formula: hp?.formula ?? null };
+}
+
+function getUpdatedNpcFormula(formula, constitutionModifier) {
+  if (typeof formula !== "string") return null;
+  const match = formula.trim().match(/^(\\d*)d(\\d+)(.*)$/i);
+  if (!match) return null;
+  const count = Number(match[1] || 1);
+  const faces = Number(match[2]);
+  if (!Number.isInteger(count) || count < 1 || !Number.isInteger(faces) || faces < 2) return null;
+  let suffix = match[3] ?? "";
+  const trailingConstant = suffix.match(/^(.*?)([+-])(\\d+)\\s*$/);
+  if (trailingConstant) {
+    const base = trailingConstant[1];
+    const sign = trailingConstant[2] === "-" ? -1 : 1;
+    const value = sign * Number(trailingConstant[3]) + constitutionModifier;
+    suffix = value === 0 ? base : `${base}${value < 0 ? "-" : "+"}${Math.abs(value)}`;
+  } else if (constitutionModifier !== 0) {
+    suffix += constitutionModifier < 0 ? String(constitutionModifier) : `+${constitutionModifier}`;
+  }
+  return `${count + 1}d${faces}${suffix}`;
 }
 
 function getLedger(actor) {
@@ -53,6 +73,8 @@ export const ToughenUpApplication = Object.freeze({
       return { eligible: false, reason: "already-applied", previous: clone(existing) };
     }
 
+    if (actor.type !== "npc") return { eligible: false, reason: "unsupported-actor-type-for-hit-die-update" };
+
     const hitDie = getHitDie(actor);
     if (!hitDie) return { eligible: false, reason: "unsupported-hit-die-data" };
 
@@ -64,12 +86,17 @@ export const ToughenUpApplication = Object.freeze({
       return { eligible: false, reason: "missing-constitution-modifier" };
     }
 
+    const formulaAfter = getUpdatedNpcFormula(hp.formula, constitutionModifier);
+    if (!formulaAfter) return { eligible: false, reason: "unsupported-npc-hp-formula" };
+
     return {
       eligible: true,
       applicationId: String(applicationId),
       denomination: hitDie.denomination,
       hitDiceBefore: hitDie.maximum,
       hpBefore: hp,
+      formulaBefore: hp.formula,
+      formulaAfter,
       constitutionModifier
     };
   },
@@ -93,7 +120,6 @@ export const ToughenUpApplication = Object.freeze({
         : Math.min(hpBefore.maximum + hpIncrease, hpBefore.value + hpIncrease)
     };
 
-    const hdPath = "system.attributes.hd.max";
     const ledgerEntry = {
       applicationId: preview.applicationId,
       type: "toughen-up",
@@ -103,6 +129,8 @@ export const ToughenUpApplication = Object.freeze({
       hpIncrease,
       hpBefore: clone(hpBefore),
       hpAfter: clone(hpAfter),
+      formulaBefore: preview.formulaBefore,
+      formulaAfter: preview.formulaAfter,
       hitDiceBefore: preview.hitDiceBefore,
       hitDiceAfter: preview.hitDiceBefore + 1,
       appliedAt: new Date().toISOString()
@@ -112,9 +140,9 @@ export const ToughenUpApplication = Object.freeze({
     // HP change without a corresponding idempotency record if a later write fails.
     const ledger = getLedger(actor);
     await actor.update({
+      "system.attributes.hp.formula": preview.formulaAfter,
       "system.attributes.hp.max": hpAfter.max,
       "system.attributes.hp.value": hpAfter.value,
-      [hdPath]: preview.hitDiceBefore + 1,
       [`flags.${MODULE_ID}.${FLAG_KEY}`]: [...ledger, ledgerEntry]
     });
 
@@ -125,6 +153,7 @@ export const ToughenUpApplication = Object.freeze({
       verifiedHD &&
       verifiedHP.maximum === hpAfter.max &&
       verifiedHP.value === hpAfter.value &&
+      verifiedHP.formula === preview.formulaAfter &&
       verifiedHD.maximum === preview.hitDiceBefore + 1
     );
 
@@ -137,6 +166,8 @@ export const ToughenUpApplication = Object.freeze({
       hpIncrease,
       hpBefore,
       hpAfter: verifiedHP,
+      formulaBefore: preview.formulaBefore,
+      formulaAfter: verifiedHP?.formula ?? null,
       hitDiceBefore: preview.hitDiceBefore,
       hitDiceAfter: verifiedHD?.maximum ?? null,
       reason: verified ? null : "post-update-verification-failed"
