@@ -60,8 +60,8 @@
             </div>
             <div class="tamer-manager__card-actions">
               {{#if actorExists}}
-                <button type="button" data-action="toggleSummon" data-record-id="{{id}}" title="{{#if (eq status "summoned")}}Return companion to storage{{else}}Summon companion to current scene{{/if}}">
-                  {{#if (eq status "summoned")}}<i class="fa-solid fa-box"></i><span class="visually-hidden">Return to storage</span>{{else}}<i class="fa-solid fa-wand-sparkles"></i><span class="visually-hidden">Summon companion</span>{{/if}}
+                <button type="button" data-action="toggleSummon" data-record-id="{{id}}" title="{{#if isSummoned}}Return companion to storage{{else}}Summon companion to current scene{{/if}}">
+                  {{#if isSummoned}}<i class="fa-solid fa-box"></i><span class="visually-hidden">Return to storage</span>{{else}}<i class="fa-solid fa-wand-sparkles"></i><span class="visually-hidden">Summon companion</span>{{/if}}
                 </button>
                 <button type="button" data-action="openCompanion" data-actor-uuid="{{actorUuid}}" title="Open companion sheet">
                   <i class="fa-solid fa-up-right-from-square"></i><span class="visually-hidden">Open companion sheet</span>
