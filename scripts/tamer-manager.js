@@ -38,7 +38,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       refresh: TamerManager._onRefresh,
       addCompanion: TamerManager._onAddCompanion,
       removeCompanion: TamerManager._onRemoveCompanion,
-      openCompanion: TamerManager._onOpenCompanion
+      openCompanion: TamerManager._onOpenCompanion,
+      toggleSummon: TamerManager._onToggleSummon
     }
   };
   static PARTS = {
@@ -190,6 +191,20 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
     await this.render({ force: true });
+  }
+
+  static async _onToggleSummon(event, target) {
+    const recordId = target?.dataset?.recordId;
+    if (!recordId || !this.tamer) return;
+    const record = TamerRecords.read(this.tamer).find(item => item.id === recordId);
+    if (!record) {
+      ui.notifications.warn("That companion relationship no longer exists.");
+      await this.render({ force: true });
+      return;
+    }
+    // This control records the intended state only. Actual token creation and
+    // removal are not claimed until a summon implementation is connected.
+    ui.notifications.info("Summoning is not yet connected to token placement. No game state was changed.");
   }
 
   static async _onOpenCompanion(event, target) {
