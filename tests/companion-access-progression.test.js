@@ -4,6 +4,7 @@ import { CompanionProgression } from "../scripts/data/companion-progression.js";
 import { CompanionAccessAdapters } from "../scripts/data/companion-access-adapters.js";
 import { TamerAccessPreview } from "../scripts/data/tamer-access-preview.js";
 import { TamerCompanionSummary } from "../scripts/data/tamer-companion-summary.js";
+import { TamerProgressionProvider } from "../scripts/data/tamer-progression-provider.js";
 
 if (!globalThis.foundry) {
   globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
@@ -147,6 +148,26 @@ await test("Tamer preview rejects invalid class levels without granting eligibil
   const result = await TamerAccessPreview.resolve(owner);
   assert(result.valid && result.eligible, "Access source should resolve independently of invalid progression.");
   assert(result.progression === null, "Invalid level must not yield progression.");
+  assert(result.reason === "invalid-tamer-level", "Expected explicit invalid-level reason.");
+});
+
+await test("shared Tamer progression provider resolves only valid levels", async () => {
+  const context = {
+    progressionProviderIds: ["tamer-class"],
+    sources: [{
+      id: "tamer-class",
+      type: "class",
+      documentUuid: "Actor.owner.Item.tamer",
+      metadata: { classLevel: 3 }
+    }]
+  };
+  const result = await CompanionProgression.resolveAll(context, [TamerProgressionProvider]);
+  assert(result.valid, "Expected shared Tamer provider to resolve.");
+  assert(result.results[0].level === 3, "Expected provider to use source metadata level.");
+  const invalid = await TamerProgressionProvider.resolve({
+    sources: [{ ...context.sources[0], metadata: { classLevel: 0 } }]
+  });
+  assert(!invalid.valid && invalid.reason === "invalid-tamer-level", "Invalid level must fail closed.");
 });
 
 await test("Tamer summary rejects out-of-range levels", () => {
