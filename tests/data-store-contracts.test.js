@@ -124,6 +124,59 @@ await test("malformed tree store is not normalized into empty data", () => {
 
 
 
+await test("initialization recovery repairs a failed relationship write without reapplying mechanics", async () => {
+  const tamerFlags = {};
+  let failRelationshipWrite = true;
+  const tamer = {
+    uuid: "Actor.tamer", system: { attributes: { prof: 2 } },
+    items: [{ type: "class", name: "Tamer", system: { identifier: "tamer", levels: 3 } }],
+    getFlag: (scope, key) => tamerFlags[`${scope}.${key}`],
+    setFlag: async (scope, key, value) => {
+      if (failRelationshipWrite) { failRelationshipWrite = false; throw new Error("injected relationship write failure"); }
+      tamerFlags[`${scope}.${key}`] = structuredClone(value);
+    }
+  };
+  const companionFlags = {};
+  const companion = {
+    uuid: "Actor.companion", name: "Companion", type: "npc",
+    system: { details: { cr: 0.5 }, traits: { size: "tiny" },
+      attributes: { hd: { denomination: 8, max: 1 }, hp: { value: 6, max: 10, formula: "1d8+2" } },
+      abilities: { con: { mod: 2 } } },
+    getFlag: (scope, key) => companionFlags[`${scope}.${key}`],
+    setFlag: async (scope, key, value) => { companionFlags[`${scope}.${key}`] = structuredClone(value); },
+    update: async changes => {
+      for (const [path, value] of Object.entries(changes)) {
+        if (path.startsWith("system.")) {
+          const keys = path.split("."); let target = companion;
+          for (const key of keys.slice(0, -1)) target = target[key] ??= {};
+          target[keys[keys.length - 1]] = value;
+        } else if (path.startsWith("flags.")) companionFlags[path.slice(6)] = structuredClone(value);
+      }
+    }
+  };
+  const oldRoll = globalThis.Roll;
+  const oldRandomID = globalThis.foundry.utils.randomID;
+  globalThis.foundry.utils.randomID = () => `test-${Math.random().toString(36).slice(2)}`;
+  globalThis.Roll = class { constructor(formula) { this.formula = formula; } async evaluate() { return { total: 4 }; } };
+  try {
+    const first = await TamerRecords.add(tamer, companion);
+    assert(!first.record && first.reason === "companion-record-persistence-failed", "First attempt should report relationship write failure.");
+    assert(TamerRecords.read(tamer).length === 0, "Failed write must not claim a saved relationship.");
+    const hitDiceAfterFirst = companion.system.attributes.hd.max;
+    assert((companionFlags["tamer-manager.companionInitializationApplications"] ?? []).length === 1, "Initialization ledger should be committed.");
+    const second = await TamerRecords.add(tamer, companion);
+    assert(second.record && second.initialization?.recovered, "Retry should recover the relationship from the ledger.");
+    assert(companion.system.attributes.hd.max === hitDiceAfterFirst, "Recovery must not grant hit dice twice.");
+    assert(TamerRecords.read(tamer).length === 1, "Recovery should create exactly one relationship.");
+    const third = await TamerRecords.add(tamer, companion);
+    assert(third.record?.id === second.record.id, "Repeated add should return the existing relationship.");
+    assert(companion.system.attributes.hd.max === hitDiceAfterFirst, "Repeated add must remain idempotent.");
+  } finally {
+    if (oldRoll === undefined) delete globalThis.Roll; else globalThis.Roll = oldRoll;
+    if (oldRandomID === undefined) delete globalThis.foundry.utils.randomID; else globalThis.foundry.utils.randomID = oldRandomID;
+  }
+});
+
 const failed = results.filter(result => !result.passed);
 globalThis.__TAMER_MANAGER_STORE_TESTS__ = { passed: results.length - failed.length, failed: failed.length, tests: results };
 if (failed.length) throw new Error(JSON.stringify(globalThis.__TAMER_MANAGER_STORE_TESTS__));
