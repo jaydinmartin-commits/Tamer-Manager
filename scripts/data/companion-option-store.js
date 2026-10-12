@@ -127,12 +127,14 @@ export const CompanionOptionStore = Object.freeze({
   },
   async upsert(definition) {
     if (!definition || typeof definition !== "object" || !definition.id) throw new Error("Invalid companion option definition.");
-    const normalized = CompanionOptionDefinition.normalize(definition);
     const definitions = readStore().definitions;
-    const index = definitions.findIndex(item => item.id === normalized.id);
-    if (index === -1) definitions.push(normalized);
-    else definitions[index] = normalized;
-    return this.write(definitions);
+    const index = definitions.findIndex(item => item.id === String(definition.id));
+    const candidate = [...definitions];
+    if (index === -1) candidate.push(definition);
+    else candidate[index] = definition;
+    // Validate raw values before normalization can coerce malformed values.
+    normalizeDefinitions(candidate);
+    return this.write(candidate);
   },
   async remove(id) {
     const targetId = String(id);
