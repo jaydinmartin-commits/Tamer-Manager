@@ -36,7 +36,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     actions: {
       refresh: TamerManager._onRefresh,
       addCompanion: TamerManager._onAddCompanion,
-      removeCompanion: TamerManager._onRemoveCompanion
+      removeCompanion: TamerManager._onRemoveCompanion,
+      openCompanion: TamerManager._onOpenCompanion
     }
   };
   static PARTS = {
@@ -129,6 +130,18 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
     await this.render({ force: true });
+  }
+
+  static async _onOpenCompanion(event, target) {
+    const uuid = target?.dataset?.actorUuid;
+    if (!uuid) return;
+    const actor = await fromUuid(uuid).catch(() => null);
+    if (!actor) {
+      ui.notifications.warn("That companion Actor is no longer available. Its saved relationship was preserved.");
+      await this.render({ force: true });
+      return;
+    }
+    actor.sheet?.render(true);
   }
 
   static async _onRemoveCompanion(event, target) {
