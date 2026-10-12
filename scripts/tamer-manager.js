@@ -210,10 +210,22 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
     const items = this.tamer.items?.contents ?? Array.from(this.tamer.items ?? []);
+    // Only offer items explicitly identifiable as vessels. A generic piece of
+    // equipment, consumable, loot, or feat must never become a vessel by accident.
+    const isVesselItem = item => {
+      const flags = item.flags?.["tamer-manager"] ?? {};
+      const identifier = String(item.system?.identifier ?? item.system?.slug ?? "").toLowerCase();
+      const name = String(item.name ?? "").toLowerCase();
+      return flags.isVessel === true ||
+        flags.vessel === true ||
+        flags.kind === "vessel" ||
+        identifier.includes("vessel") ||
+        /\bvessel\b/.test(name);
+    };
     const candidates = items.filter(item =>
-      item.type !== "class" && item.type !== "subclass" &&
-      (item.type === "equipment" || item.type === "consumable" || item.type === "loot" || item.type === "feat") &&
-      item.id !== record.actorUuid
+      item.id !== record.actorUuid &&
+      ["equipment", "consumable", "loot", "feat"].includes(item.type) &&
+      isVesselItem(item)
     );
     if (!candidates.length) {
       ui.notifications.warn("No vessel items were found on this Tamer. Add the vessel item to the character first.");
