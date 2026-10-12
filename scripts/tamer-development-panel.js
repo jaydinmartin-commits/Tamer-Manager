@@ -24,14 +24,17 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
     window: { title: "Tamer Manager — Development & Testing", resizable: true },
     position: { width: 760, height: 720 },
     actions: {
-      refresh: TamerDevelopmentPanel._onRefresh,
-      openOptionSettings: TamerDevelopmentPanel._onOpenOptionSettings,
-      runPreflight: TamerDevelopmentPanel._onRunPreflight,
-      applyInitialization: TamerDevelopmentPanel._onApplyInitialization,
-      testImprovement: TamerDevelopmentPanel._onTestImprovement,
-      applyToughenUp: TamerDevelopmentPanel._onApplyToughenUp,
-      openOwner: TamerDevelopmentPanel._onOpenOwner,
-      openCompanion: TamerDevelopmentPanel._onOpenCompanion
+      // ApplicationV2 action handlers are instance methods; bind their method
+      // references through the prototype so the framework can invoke them on
+      // the live application instance.
+      refresh: TamerDevelopmentPanel.prototype._onRefresh,
+      openOptionSettings: TamerDevelopmentPanel.prototype._onOpenOptionSettings,
+      runPreflight: TamerDevelopmentPanel.prototype._onRunPreflight,
+      applyInitialization: TamerDevelopmentPanel.prototype._onApplyInitialization,
+      testImprovement: TamerDevelopmentPanel.prototype._onTestImprovement,
+      applyToughenUp: TamerDevelopmentPanel.prototype._onApplyToughenUp,
+      openOwner: TamerDevelopmentPanel.prototype._onOpenOwner,
+      openCompanion: TamerDevelopmentPanel.prototype._onOpenCompanion
     }
   };
 
