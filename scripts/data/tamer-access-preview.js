@@ -1,6 +1,6 @@
 import { CompanionAccessResolver } from "./companion-access-resolver.js";
 import { CompanionAccessAdapters } from "./companion-access-adapters.js";
-import { TamerCompanionSummary } from "./tamer-companion-summary.js";
+import { TamerProgressionProvider } from "./tamer-progression-provider.js";
 
 function isTamerClass(item) {
   return item?.type === "class" && (
@@ -33,12 +33,8 @@ export const TamerAccessPreview = Object.freeze({
       };
     }
 
-    const item = owner.items.find(isTamerClass);
-    const level = Number(item?.system?.levels);
-    let progression = null;
-    if (Number.isInteger(level) && level >= 1 && level <= 20) {
-      progression = TamerCompanionSummary.forLevel(level);
-    }
+    const progressionResult = await TamerProgressionProvider.resolve(access.context);
+    const progression = progressionResult.valid ? progressionResult : null;
 
     return {
       valid: true,
@@ -61,7 +57,7 @@ export const TamerAccessPreview = Object.freeze({
         maxCR: progression.maxCR
       } : null,
       errors: [],
-      reason: progression ? null : "invalid-tamer-level"
+      reason: progression ? null : (progressionResult.reason ?? "invalid-tamer-level")
     };
   }
 });
