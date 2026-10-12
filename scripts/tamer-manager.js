@@ -49,8 +49,22 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _prepareContext() {
-    return { moduleId: MODULE_ID, tamer: this.tamer,
-      companions: this.tamer ? TamerRecords.read(this.tamer) : [] };
+    const records = this.tamer ? TamerRecords.read(this.tamer) : [];
+    const companions = records.map(record => {
+      const actor = record.actorUuid ? game.actors?.get?.(record.actorUuid) : null;
+      return {
+        ...record,
+        actorName: actor?.name ?? record.name ?? "Missing companion Actor",
+        actorExists: Boolean(actor),
+        actorUuid: record.actorUuid ?? "",
+        challengeRating: actor?.system?.details?.cr ?? null,
+        size: actor?.system?.traits?.size ?? null,
+        hitPoints: actor?.system?.attributes?.hp?.value ?? null,
+        hitPointsMax: actor?.system?.attributes?.hp?.max ?? null
+      };
+    });
+    return { moduleId: MODULE_ID, tamer: this.tamer, companions,
+      hasTamer: Boolean(this.tamer), canManage: Boolean(this.tamer && TamerRecords.isTamer(this.tamer)) };
   }
 
   static async chooseTamer() {
