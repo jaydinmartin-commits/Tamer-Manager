@@ -1,6 +1,10 @@
 import { CompanionAccessContext } from "../scripts/data/companion-access-context.js";
 import { CompanionProgression } from "../scripts/data/companion-progression.js";
 
+if (!globalThis.foundry) {
+  globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
+}
+
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -13,16 +17,16 @@ function assertThrows(callback, message) {
 
 const testResults = [];
 
-function test(name, callback) {
+async function test(name, callback) {
   try {
-    callback();
+    await callback();
     testResults.push({ name, passed: true });
   } catch (error) {
     testResults.push({ name, passed: false, error: String(error?.message ?? error) });
   }
 }
 
-test("access context normalizes source data and unique permissions", () => {
+await test("access context normalizes source data and unique permissions", () => {
   const context = CompanionAccessContext.create({
     ownerUuid: "Actor.owner",
     sources: [{
@@ -40,7 +44,7 @@ test("access context normalizes source data and unique permissions", () => {
   assert(!CompanionAccessContext.can(context, "delete"), "Unexpected delete permission.");
 });
 
-test("access context rejects invalid and duplicate source definitions", () => {
+await test("access context rejects invalid and duplicate source definitions", () => {
   assertThrows(() => CompanionAccessContext.create({
     ownerUuid: "Actor.owner",
     sources: [{ id: "bad", type: "unknown", documentUuid: "Item.bad", allowedOperations: [], progressionProviderIds: [] }]
@@ -54,14 +58,13 @@ test("access context rejects invalid and duplicate source definitions", () => {
   }), "Expected duplicate source ID to be rejected.");
 });
 
-test("progression fails closed when provider is missing", async () => {
-  const context = { progressionProviderIds: ["tamer"] };
-  const result = await CompanionProgression.resolveAll(context, []);
+await test("progression fails closed when provider is missing", async () => {
+  const result = await CompanionProgression.resolveAll({ progressionProviderIds: ["tamer"] }, []);
   assert(!result.valid, "Expected missing provider to invalidate result.");
   assert(result.errors.length === 1, "Expected a missing-provider error.");
 });
 
-test("progression accepts matching provider result", async () => {
+await test("progression accepts matching provider result", async () => {
   const provider = CompanionProgression.createProvider({
     id: "tamer",
     resolve: async () => ({ providerId: "tamer", valid: true, level: 3 })
@@ -71,7 +74,7 @@ test("progression accepts matching provider result", async () => {
   assert(result.results[0].level === 3, "Expected provider data to be returned.");
 });
 
-test("progression rejects duplicate provider IDs", async () => {
+await test("progression rejects duplicate provider IDs", async () => {
   const provider = CompanionProgression.createProvider({
     id: "tamer",
     resolve: async () => ({ providerId: "tamer", valid: true })
@@ -87,5 +90,5 @@ const summary = {
   tests: testResults
 };
 
-if (typeof globalThis !== "undefined") globalThis.__TAMER_MANAGER_CONTRACT_TESTS__ = summary;
+globalThis.__TAMER_MANAGER_CONTRACT_TESTS__ = summary;
 if (failed.length) throw new Error(JSON.stringify(summary));
