@@ -71,6 +71,29 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         ...record,
         actorName: actor?.name ?? record.name ?? "Missing companion Actor",
         selectedImprovements: Array.isArray(record.improvements) ? record.improvements.length : 0,
+        improvementProgressLabel: (() => {
+          const selected = Array.isArray(record.improvements) ? record.improvements.length : 0;
+          if (!actor || tamerLevel < 1) return `${selected} / —`;
+          try {
+            const available = TamerCompanionSummary.trainingFor(tamerLevel, actor.system?.details?.cr ?? actor.system?.details?.challenge).improvements;
+            return `${selected} / ${available}`;
+          } catch { return `${selected} / —`; }
+        })(),
+        challengeRatingLabel: (() => {
+          const cr = actor?.system?.details?.cr ?? actor?.system?.details?.challenge;
+          if (cr === 0 || cr === "0") return "CR 0";
+          if (cr === null || cr === undefined || cr === "") return "—";
+          const n = Number(cr);
+          if (Number.isFinite(n)) {
+            const common = [[1/8,"1/8"],[1/4,"1/4"],[1/2,"1/2"],[1/3,"1/3"]];
+            const fraction = common.find(([value]) => Math.abs(value - n) < 0.0001);
+            return `CR ${fraction?.[1] ?? n}`;
+          }
+          return `CR ${String(cr)}`;
+        })(),
+        sizeLabel: actor?.system?.traits?.size
+          ? String(actor.system.traits.size).replace(/^./, value => value.toUpperCase())
+          : "");
         availableImprovements: actor && tamerLevel >= 1 ? (() => { try { return TamerCompanionSummary.trainingFor(tamerLevel, actor.system?.details?.cr ?? actor.system?.details?.challenge).improvements; } catch { return null; } })() : null,
         vesselName: record.vesselName || (record.vesselUuid ? "Assigned vessel" : "No vessel assigned"),
         statusLabel: record.status === "summoned" ? "Summoned" : "In vessel",
