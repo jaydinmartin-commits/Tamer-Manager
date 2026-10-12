@@ -4,10 +4,26 @@ import { CompanionOptionValidator } from "./companion-option-validator.js";
 const MODULE_ID = "tamer-manager";
 const SETTING_KEY = "companionOptions";
 const SCHEMA_VERSION = 1;
+const TREE_SETTING_KEY = "companionTrees";
 
 function clone(value) { return foundry.utils.deepClone(value); }
 function emptyStore() { return { schemaVersion: SCHEMA_VERSION, definitions: [] }; }
 
+function validateRawDefinition(raw, index) {
+  const label = raw.id ?? `at index ${index}`;
+  if (raw.name != null && typeof raw.name !== "string") throw new Error(`Option ${label} has a non-string name.`);
+  if (raw.type != null && !["improvement", "augment"].includes(raw.type)) throw new Error(`Option ${label} has an unknown type.`);
+  if (raw.slotCost != null && (!Number.isInteger(raw.slotCost) || raw.slotCost < 0)) throw new Error(`Option ${label} has an invalid slotCost.`);
+  if (raw.pointCost != null && (typeof raw.pointCost !== "number" || !Number.isFinite(raw.pointCost) || raw.pointCost < 0)) throw new Error(`Option ${label} has an invalid pointCost.`);
+  if (raw.repeatable != null && typeof raw.repeatable !== "boolean") throw new Error(`Option ${label} has an invalid repeatable value.`);
+  if (raw.maxSelections != null && (!Number.isInteger(raw.maxSelections) || raw.maxSelections < 1)) throw new Error(`Option ${label} has an invalid maxSelections.`);
+  if (raw.requirements != null && (!raw.requirements || typeof raw.requirements !== "object" || Array.isArray(raw.requirements))) throw new Error(`Option ${label} has invalid requirements.`);
+  if (raw.requirements?.tamerLevel != null && (!Number.isInteger(raw.requirements.tamerLevel) || raw.requirements.tamerLevel < 0 || raw.requirements.tamerLevel > 20)) throw new Error(`Option ${label} has an invalid Tamer level.`);
+  if (raw.requirements?.companionIdentifiers != null && (!Array.isArray(raw.requirements.companionIdentifiers) || raw.requirements.companionIdentifiers.some(value => typeof value !== "string"))) throw new Error(`Option ${label} has invalid companion identifiers.`);
+  if (raw.prerequisiteIds != null && (!Array.isArray(raw.prerequisiteIds) || raw.prerequisiteIds.some(value => typeof value !== "string"))) throw new Error(`Option ${label} has invalid prerequisite IDs.`);
+  if (raw.treeId != null && (typeof raw.treeId !== "string" || !raw.treeId.trim())) throw new Error(`Option ${label} has an invalid tree ID.`);
+  if (raw.metadata != null && (!raw.metadata || typeof raw.metadata !== "object" || Array.isArray(raw.metadata))) throw new Error(`Option ${label} has invalid metadata.`);
+}
 function migrateStore(value) {
   if (value == null) return emptyStore();
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -35,6 +51,7 @@ function migrateStore(value) {
       throw new Error(`Stored companion option at index ${index} is malformed; no data was changed.`);
     }
     try {
+      validateRawDefinition(raw, index);
       definitions.push(CompanionOptionDefinition.normalize(raw));
     } catch (error) {
       throw new Error(`Stored companion option at index ${index} cannot be normalized: ${error.message}`);
@@ -51,7 +68,24 @@ function readRawStore() {
   }
   return game.settings.get(MODULE_ID, SETTING_KEY);
 }
-function readStore() { return migrateStore(readRawStore()); }
+function readStore() {
+  const store = migrateStore(readRawStore());
+  const rawTrees = game.settings?.settings?.has?.(`${MODULE_ID}.${TREE_SETTING_KEY}`)
+    ? game.settings.get(MODULE_ID, TREE_SETTING_KEY)
+    : { schemaVersion: 1, trees: [] };
+  if (!rawTrees || typeof rawTrees !== "object" || !Number.isInteger(rawTrees.schemaVersion) || rawTrees.schemaVersion !== 1 || !Array.isArray(rawTrees.trees)) {
+    throw new Error("Stored companion trees are malformed or use an unsupported schema; option assignments were not changed.");
+  }
+  const treeIds = new Set();
+  for (const tree of rawTrees.trees) {
+    if (!tree || typeof tree.id !== "string" || !tree.id.trim() || treeIds.has(tree.id)) throw new Error("Stored companion trees contain malformed or duplicate IDs; option assignments were not changed.");
+    treeIds.add(tree.id);
+  }
+  for (const definition of store.definitions) {
+    if (definition.treeId && !treeIds.has(definition.treeId)) throw new Error(`Option ${definition.id} references missing companion tree ${definition.treeId}; data was preserved.`);
+  }
+  return store;
+}
 function normalizeDefinitions(definitions) {
   if (!Array.isArray(definitions)) throw new Error("Companion option definitions must be an array.");
   const normalized = definitions.map((record, index) => {
