@@ -8,6 +8,7 @@ import { CompanionOptions } from "./data/companion-options.js";
 import { CompanionSelection } from "./data/companion-selection.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 import { CompanionInitialization } from "./data/companion-initialization.js";
+import { CompanionInitializationApplication } from "./data/companion-initialization-application.js";
 import { CompanionAccessContext } from "./data/companion-access-context.js";
 import { CompanionAccessResolver } from "./data/companion-access-resolver.js";
 import { CompanionProgression } from "./data/companion-progression.js";
@@ -46,6 +47,7 @@ Hooks.once("init", () => {
     CompanionSelection,
     TamerCompanionSummary,
     CompanionInitialization,
+    CompanionInitializationApplication,
     CompanionAccessContext,
     CompanionAccessResolver,
     CompanionProgression,
