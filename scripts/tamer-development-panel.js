@@ -1,4 +1,5 @@
 import { CompanionInitialization } from "./data/companion-initialization.js";
+import { TamerConfiguration } from "./tamer-configuration.js";
 import { CompanionInitializationApplication } from "./data/companion-initialization-application.js";
 import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptionStore } from "./data/companion-option-store.js";
@@ -24,6 +25,7 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
     position: { width: 760, height: 720 },
     actions: {
       refresh: TamerDevelopmentPanel._onRefresh,
+      openOptionSettings: TamerDevelopmentPanel._onOpenOptionSettings,
       runPreflight: TamerDevelopmentPanel._onRunPreflight,
       applyInitialization: TamerDevelopmentPanel._onApplyInitialization,
       testImprovement: TamerDevelopmentPanel._onTestImprovement,
@@ -81,6 +83,7 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
   }
 
   async _onRefresh() { this.report = null; this.lastPlan = null; this.improvementReport = null; await this.render({ force: true }); }
+  async _onOpenOptionSettings() { if (game.user?.isGM) new TamerConfiguration().render({ force: true }); }
   async _onOpenOwner(event, target) {
     const { owner } = await this._selectedActors(target);
     owner?.sheet?.render(true);
