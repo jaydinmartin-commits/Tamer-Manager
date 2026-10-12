@@ -1,6 +1,9 @@
 import { CompanionInitialization } from "./data/companion-initialization.js";
 import { CompanionInitializationApplication } from "./data/companion-initialization-application.js";
 import { TamerRecords } from "./data/tamer-records.js";
+import { CompanionOptionStore } from "./data/companion-option-store.js";
+import { CompanionOptions } from "./data/companion-options.js";
+import { ToughenUpApplication } from "./data/toughen-up-application.js";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 const MODULE_ID = "tamer-manager";
@@ -23,6 +26,8 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
       refresh: TamerDevelopmentPanel._onRefresh,
       runPreflight: TamerDevelopmentPanel._onRunPreflight,
       applyInitialization: TamerDevelopmentPanel._onApplyInitialization,
+      testImprovement: TamerDevelopmentPanel._onTestImprovement,
+      applyToughenUp: TamerDevelopmentPanel._onApplyToughenUp,
       openOwner: TamerDevelopmentPanel._onOpenOwner,
       openCompanion: TamerDevelopmentPanel._onOpenCompanion
     }
@@ -39,6 +44,8 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
     this.report = null;
     this.lastPlan = null;
     this.applicationId = "";
+    this.improvementId = "";
+    this.improvementReport = null;
     this.busy = false;
   }
 
@@ -66,11 +73,14 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
       companionName: companion?.name ?? "Not selected",
       report: this.report ? { ...this.report, isPassed: this.report.status === "passed" } : null,
       canApply: Boolean(this.lastPlan?.eligible && owner && companion && !this.busy),
+      improvementOptions: [{ value: "builtin:toughen-up", label: "Toughen Up (built-in universal improvement)", selected: this.improvementId === "builtin:toughen-up" }, ...CompanionOptionStore.list("improvement").map(option => ({ value: option.id, label: option.name + " (registered)", selected: this.improvementId === option.id }))],
+      improvementReport: this.improvementReport ? { ...this.improvementReport, isPassed: this.improvementReport.status === "passed" } : null,
+      canApplyToughenUp: Boolean(this.companionUuid && this.improvementReport?.canApply && !this.busy),
       busy: this.busy
     };
   }
 
-  async _onRefresh() { this.report = null; this.lastPlan = null; await this.render({ force: true }); }
+  async _onRefresh() { this.report = null; this.lastPlan = null; this.improvementReport = null; await this.render({ force: true }); }
   async _onOpenOwner(event, target) {
     const { owner } = await this._selectedActors(target);
     owner?.sheet?.render(true);
@@ -131,6 +141,47 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
     }
   }
 
+  async _onTestImprovement(event, target) {
+    if (!game.user?.isGM || this.busy) return;
+    this.busy = true;
+    try {
+      const form = target?.form ?? target?.closest?.("form") ?? this.element?.querySelector("form");
+      const selectedId = form?.elements?.improvement?.value ?? "";
+      const { owner, companion } = await this._selectedActors(target);
+      this.improvementId = selectedId;
+      if (!companion) throw new Error("Select a companion Actor first.");
+      if (!selectedId) throw new Error("Choose an improvement first.");
+      if (selectedId === "builtin:toughen-up") {
+        const preview = ToughenUpApplication.preview({ actor: companion, applicationId: companion.uuid + "::toughen-up::dev-test" });
+        this.improvementReport = { title: preview.eligible ? "Toughen Up preflight passed" : "Toughen Up preflight failed", status: preview.eligible ? "passed" : "failed", canApply: Boolean(preview.eligible), details: preview.eligible ? ["Actor: " + companion.name, "Hit die: d" + preview.denomination + "; count: " + preview.hitDiceBefore, "HP formula: " + preview.formulaBefore + " → " + preview.formulaAfter, "Constitution modifier: " + preview.constitutionModifier, "This preview is read-only."] : ["Blocked: " + preview.reason] };
+      } else {
+        const definition = CompanionOptionStore.get(selectedId);
+        if (!definition || definition.type !== "improvement") throw new Error("That registered improvement no longer exists.");
+        const issues = [];
+        if (!owner) issues.push("Select a Tamer to check level requirements.");
+        else if (!CompanionOptions.isAvailable(definition, { tamer: owner, companion: { actorUuid: companion.uuid } })) issues.push("Tamer-level or companion-identifier requirements are not met.");
+        this.improvementReport = { title: issues.length ? "Registration/eligibility check failed" : "Registration/eligibility check passed", status: issues.length ? "failed" : "passed", canApply: false, details: ["Name: " + definition.name + " (" + definition.id + ")", "Source Item: " + (definition.sourceUuid || "not linked"), "Tamer level required: " + (definition.requirements?.tamerLevel ?? 0), "Prerequisites: " + (definition.prerequisiteIds?.join(", ") || "none"), "Repeatable: " + (definition.repeatable ? "yes" : "no") + "; max selections: " + (definition.maxSelections ?? 1), ...issues, ...(issues.length ? [] : ["No mechanical adapter is registered for this option yet; it can be configured and validated but not applied here."])] };
+      }
+    } catch (error) { this.improvementReport = { title: "Improvement test failed", status: "failed", canApply: false, details: [String(error?.message ?? error)] }; }
+    finally { this.busy = false; await this.render({ force: true }); }
+  }
+
+  async _onApplyToughenUp(event, target) {
+    if (!game.user?.isGM || this.busy || this.improvementId !== "builtin:toughen-up") return;
+    this.busy = true;
+    try {
+      const { companion } = await this._selectedActors(target);
+      if (!companion) throw new Error("Select a companion Actor first.");
+      const applicationId = companion.uuid + "::toughen-up::dev-test";
+      const preview = ToughenUpApplication.preview({ actor: companion, applicationId });
+      if (!preview.eligible) throw new Error("Toughen Up is blocked: " + preview.reason);
+      const confirmed = await foundry.applications.api.DialogV2.confirm({ window: { title: "Apply Toughen Up (Test)" }, content: "<p>This permanently adds one hit die and rolls its HP increase for <strong>" + foundry.utils.escapeHTML(companion.name) + "</strong>.</p><p>Use a disposable test NPC. This test action is recorded to prevent duplicate application.</p>", yes: { label: "Apply Toughen Up" }, no: { label: "Cancel" } });
+      if (!confirmed) return;
+      const result = await ToughenUpApplication.apply({ actor: companion, applicationId });
+      this.improvementReport = { title: result.verified ? "Toughen Up applied and verified" : "Toughen Up verification failed", status: result.verified ? "passed" : "failed", canApply: false, details: ["Roll: " + (result.roll ?? "not rolled"), "HP increase: " + (result.hpIncrease ?? "not applied"), "HP formula: " + (result.formulaBefore ?? "unknown") + " → " + (result.formulaAfter ?? "unknown"), "Hit dice: " + (result.hitDiceBefore ?? "unknown") + " → " + (result.hitDiceAfter ?? "unknown"), result.reason ?? "Post-update Actor values checked."] };
+    } catch (error) { this.improvementReport = { title: "Toughen Up application failed", status: "failed", canApply: false, details: [String(error?.message ?? error)] }; }
+    finally { this.busy = false; await this.render({ force: true }); }
+  }
   async _onApplyInitialization(event, target) {
     if (!game.user?.isGM || this.busy || !this.lastPlan) return;
     this.busy = true;
