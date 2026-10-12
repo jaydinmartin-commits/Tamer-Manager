@@ -1,5 +1,6 @@
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 import { TamerRecords } from "./data/tamer-records.js";
+import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 
 const MODULE_ID = "tamer-manager";
 const ADD_REASONS = {
@@ -51,7 +52,16 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _prepareContext() {
     const records = this.tamer ? TamerRecords.read(this.tamer) : [];
-    const companions = await Promise.all(records.map(async record => {
+    const tamerClass = this.tamer?.items?.find(item =>
+      item.type === "class" &&
+      (String(item.name ?? "").trim().toLowerCase() === "tamer" ||
+       String(item.system?.identifier ?? "").trim().toLowerCase() === "tamer")
+    );
+    const tamerLevel = Number(tamerClass?.system?.levels) || 0;
+    let progression = null;
+    try { if (tamerLevel >= 1 && tamerLevel <= 20) progression = TamerCompanionSummary.forLevel(tamerLevel); }
+    catch { progression = null; }
+    const companions = await Promise.all(records.map(async (record, index) => {
       let actor = null;
       if (record.actorUuid) {
         try { actor = await fromUuid(record.actorUuid); }
@@ -60,6 +70,10 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return {
         ...record,
         actorName: actor?.name ?? record.name ?? "Missing companion Actor",
+        selectedImprovements: Array.isArray(record.improvements) ? record.improvements.length : 0,
+        availableImprovements: actor && tamerLevel >= 1 ? (() => { try { return TamerCompanionSummary.trainingFor(tamerLevel, actor.system?.details?.cr ?? actor.system?.details?.challenge).improvements; } catch { return null; } })() : null,
+        vesselName: record.vesselName || (record.vesselUuid ? "Assigned vessel" : "No vessel assigned"),
+        statusLabel: record.status === "summoned" ? "Summoned" : "In vessel",
         actorExists: Boolean(actor),
         actorUuid: record.actorUuid ?? "",
         portrait: actor?.img ?? "icons/svg/mystery-man.svg",
@@ -71,10 +85,12 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         hitPoints: actor?.system?.attributes?.hp?.value ?? null,
         hitPointsMax: actor?.system?.attributes?.hp?.max ?? null,
         armorClass: actor?.system?.attributes?.ac?.value ?? null,
-        slot: records.indexOf(record) + 1
+        slot: index + 1
       };
     }));
     return { moduleId: MODULE_ID, tamer: this.tamer, companions,
+      tamerLevel, companionCount: records.length,
+      maxCompanions: progression?.maxCompanions ?? null,
       hasTamer: Boolean(this.tamer), canManage: Boolean(this.tamer && TamerRecords.isTamer(this.tamer)) };
   }
 
