@@ -37,7 +37,7 @@
     <section class="tamer-development__section">
       <h3>2. Results</h3>
       {{#if report}}
-        <div class="tamer-development__report {{#if (eq report.status 'passed')}}is-passed{{else}}is-failed{{/if}}">
+        <div class="tamer-development__report {{#if report.isPassed}}is-passed{{else}}is-failed{{/if}}">
           <h4>{{report.title}}</h4>
           <ul>
             {{#each report.details}}
