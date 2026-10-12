@@ -5,6 +5,7 @@ import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptionDefinition } from "./data/companion-option-definition.js";
 import { CompanionOptionStore } from "./data/companion-option-store.js";
 import { CompanionOptionValidator } from "./data/companion-option-validator.js";
+import { CompanionTreeStore } from "./data/companion-tree-store.js";
 import { CompanionOptions } from "./data/companion-options.js";
 import { CompanionSelection } from "./data/companion-selection.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
@@ -26,6 +27,13 @@ Hooks.once("init", () => {
     config: false,
     type: Object,
     default: { schemaVersion: 1, definitions: [] }
+  });
+
+  game.settings.register(MODULE_ID, "companionTrees", {
+    name: "Tamer Manager Companion Trees",
+    hint: "Internal configuration storage for named companion improvement trees.",
+    scope: "world", config: false, type: Object,
+    default: { schemaVersion: 1, trees: [] }
   });
 
   game.settings.registerMenu(MODULE_ID, "developmentPanel", {
@@ -54,6 +62,7 @@ Hooks.once("init", () => {
     CompanionOptionDefinition,
     CompanionOptionStore,
     CompanionOptionValidator,
+    CompanionTreeStore,
     CompanionOptions,
     CompanionSelection,
     TamerCompanionSummary,
