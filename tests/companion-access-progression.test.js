@@ -1,6 +1,9 @@
 import { CompanionAccessContext } from "../scripts/data/companion-access-context.js";
 import { CompanionAccessResolver } from "../scripts/data/companion-access-resolver.js";
 import { CompanionProgression } from "../scripts/data/companion-progression.js";
+import { CompanionAccessAdapters } from "../scripts/data/companion-access-adapters.js";
+import { TamerAccessPreview } from "../scripts/data/tamer-access-preview.js";
+import { TamerCompanionSummary } from "../scripts/data/tamer-companion-summary.js";
 
 if (!globalThis.foundry) {
   globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
@@ -90,7 +93,7 @@ await test("access resolver rejects invalid adapter output", async () => {
 });
 
 await test("progression fails closed when provider is missing", async () => {
-  const result = await CompanionProgression.resolveAll({ progressionProviderIds: ["tamer"] }, []);
+  const result = await CompanionProgression.resolveAll({ progressionProviderIds: ["tamer-class"] }, []);
   assert(!result.valid, "Expected missing provider to invalidate result.");
   assert(result.errors.length === 1, "Expected a missing-provider error.");
 });
@@ -100,18 +103,55 @@ await test("progression accepts matching provider result", async () => {
     id: "tamer-class",
     resolve: async () => ({ providerId: "tamer-class", valid: true, level: 3 })
   });
-  const result = await CompanionProgression.resolveAll({ progressionProviderIds: ["tamer"] }, [provider]);
+  const result = await CompanionProgression.resolveAll({ progressionProviderIds: ["tamer-class"] }, [provider]);
   assert(result.valid, "Expected matching provider result to be valid.");
   assert(result.results[0].level === 3, "Expected provider data to be returned.");
 });
 
 await test("progression rejects duplicate provider IDs", async () => {
   const provider = CompanionProgression.createProvider({
-    id: "tamer",
-    resolve: async () => ({ providerId: "tamer", valid: true })
+    id: "tamer-class",
+    resolve: async () => ({ providerId: "tamer-class", valid: true })
   });
-  const result = await CompanionProgression.resolveAll({ progressionProviderIds: ["tamer"] }, [provider, provider]);
+  const result = await CompanionProgression.resolveAll({ progressionProviderIds: ["tamer-class"] }, [provider, provider]);
   assert(!result.valid, "Expected duplicate providers to be rejected.");
+});
+
+await test("actual Tamer adapter uses the shared progression provider ID", async () => {
+  const owner = {
+    uuid: "Actor.owner",
+    items: [{
+      uuid: "Actor.owner.Item.tamer",
+      type: "class",
+      name: "Tamer",
+      system: { identifier: "tamer", levels: 3 }
+    }]
+  };
+  const adapter = CompanionAccessAdapters.tamerClass(owner);
+  const result = await adapter.resolve();
+  assert(result.valid, "Expected actual Tamer adapter to resolve.");
+  assert(result.source.progressionProviderIds.length === 1, "Expected one progression provider.");
+  assert(result.source.progressionProviderIds[0] === "tamer-class", "Tamer adapter provider ID mismatch.");
+});
+
+await test("Tamer preview rejects invalid class levels without granting eligibility", async () => {
+  const owner = {
+    uuid: "Actor.owner",
+    items: [{
+      uuid: "Actor.owner.Item.tamer",
+      type: "class",
+      name: "Tamer",
+      system: { identifier: "tamer", levels: 0 }
+    }]
+  };
+  const result = await TamerAccessPreview.resolve(owner);
+  assert(result.valid && result.eligible, "Access source should resolve independently of invalid progression.");
+  assert(result.progression === null, "Invalid level must not yield progression.");
+});
+
+await test("Tamer summary rejects out-of-range levels", () => {
+  assertThrows(() => TamerCompanionSummary.forLevel(0), "Expected level 0 to be rejected.");
+  assertThrows(() => TamerCompanionSummary.forLevel(21), "Expected level 21 to be rejected.");
 });
 
 const failed = testResults.filter(result => !result.passed);
