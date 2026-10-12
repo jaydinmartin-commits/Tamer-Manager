@@ -1,5 +1,6 @@
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 import { TamerRecords } from "./data/tamer-records.js";
+import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 
 const MODULE_ID = "tamer-manager";
@@ -41,7 +42,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       openCompanion: TamerManager._onOpenCompanion,
       toggleSummon: TamerManager._onToggleSummon,
       assignVessel: TamerManager._onAssignVessel,
-      clearVessel: TamerManager._onClearVessel
+      clearVessel: TamerManager._onClearVessel,
+      manageImprovements: TamerManager._onManageImprovements
     }
   };
   static PARTS = {
@@ -260,6 +262,99 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     } catch (error) {
       console.error("Tamer Manager | Vessel assignment failed.", error);
       ui.notifications.error("Could not save the vessel assignment. The previous relationship was preserved.");
+    }
+  }
+
+  static async _onManageImprovements(event, target) {
+    const recordId = target?.dataset?.recordId;
+    if (!recordId || !this.tamer) return;
+    if (!game.user?.isGM && !this.tamer.isOwner) {
+      ui.notifications.warn("You do not have permission to manage this companion.");
+      return;
+    }
+    const record = TamerRecords.read(this.tamer).find(item => item.id === recordId);
+    if (!record) {
+      ui.notifications.warn("That companion relationship no longer exists.");
+      await this.render({ force: true });
+      return;
+    }
+    const actor = await fromUuid(record.actorUuid).catch(() => null);
+    if (!actor) {
+      ui.notifications.warn("The companion Actor could not be found.");
+      return;
+    }
+    const classItem = this.tamer.items?.find(item => item.type === "class" &&
+      (String(item.name ?? "").trim().toLowerCase() === "tamer" ||
+       String(item.system?.identifier ?? "").trim().toLowerCase() === "tamer"));
+    const tamerLevel = Number(classItem?.system?.levels) || 0;
+    let maximum = 0;
+    try {
+      maximum = TamerCompanionSummary.trainingFor(
+        tamerLevel, actor.system?.details?.cr ?? actor.system?.details?.challenge
+      ).improvements;
+    } catch {
+      ui.notifications.warn("The current Tamer progression does not define an improvement allowance for this companion.");
+      return;
+    }
+    const definitions = CompanionOptions.byType("improvement");
+    const selectedIds = new Set((record.improvements ?? []).map(value =>
+      typeof value === "string" ? value : String(value?.id ?? "")
+    ).filter(Boolean));
+    const byId = new Map(definitions.map(definition => [definition.id, definition]));
+    const available = definitions.filter(definition => {
+      if (!CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record })) return false;
+      if ((definition.prerequisiteIds ?? []).some(id => !selectedIds.has(id))) return false;
+      if (definition.replacesId && !selectedIds.has(definition.replacesId)) return false;
+      const count = [...selectedIds].filter(id => id === definition.id).length;
+      return definition.repeatable || count === 0;
+    });
+    const selectedCount = selectedIds.size;
+    if (!definitions.length) {
+      ui.notifications.warn("No companion improvements have been configured by the GM yet.");
+      return;
+    }
+    const rows = definitions.map(definition => {
+      const isSelected = selectedIds.has(definition.id);
+      const prerequisitesMet = (definition.prerequisiteIds ?? []).every(id => selectedIds.has(id));
+      const levelMet = CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record });
+      const disabled = !isSelected && (!levelMet || !prerequisitesMet || (!definition.repeatable && selectedCount >= maximum));
+      const description = foundry.utils.escapeHTML(String(definition.metadata?.description ?? ""));
+      return `<label class="tamer-manager__improvement-option"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites")}</small></span></label>`;
+    }).join("");
+    const result = await foundry.applications.api.DialogV2.wait({
+      window: { title: `Manage Improvements — ${actor.name}` },
+      content: `<form><p>Choose up to ${maximum} improvements. Options unavailable at the current level or with unmet prerequisites are disabled.</p><div class="tamer-manager__improvement-list">${rows}</div></form>`,
+      buttons: [
+        { action: "save", label: "Save", default: true, callback: (event, button) =>
+          Array.from(button.form.querySelectorAll('input[name="improvement"]:checked')).map(input => input.value) },
+        { action: "cancel", label: "Cancel" }
+      ]
+    });
+    if (!Array.isArray(result)) return;
+    if (result.length > maximum) {
+      ui.notifications.warn(`This companion can have at most ${maximum} selected improvements at the Tamer's current level.`);
+      return;
+    }
+    for (const id of result) {
+      const definition = byId.get(id);
+      if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record }) ||
+          (definition.prerequisiteIds ?? []).some(prerequisite => !result.includes(prerequisite))) {
+        ui.notifications.warn(`The selection for ${definition?.name ?? id} is no longer valid. No changes were saved.`);
+        return;
+      }
+    }
+    try {
+      const latest = TamerRecords.read(this.tamer);
+      if (!latest.some(item => item.id === recordId)) throw new Error("Companion relationship changed before saving.");
+      const saved = await TamerRecords.write(this.tamer, latest.map(item => item.id === recordId
+        ? { ...item, improvements: result }
+        : item));
+      if (!saved) throw new Error("Improvement selection did not persist.");
+      ui.notifications.info("Companion improvements saved.");
+      await this.render({ force: true });
+    } catch (error) {
+      console.error("Tamer Manager | Improvement selection failed.", error);
+      ui.notifications.error("Could not save improvements. The previous selections were preserved.");
     }
   }
 
