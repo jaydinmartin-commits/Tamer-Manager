@@ -214,6 +214,11 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
 
+    if (record.status === "summoned" && !record.tokenUuid) {
+      ui.notifications.warn("This companion is marked summoned but has no saved token reference. Refresh and reconcile the existing scene token before summoning again.");
+      return;
+    }
+
     if (record.status === "summoned" && record.tokenUuid) {
       let tokenDoc = null;
       try { tokenDoc = await fromUuid(record.tokenUuid); } catch { tokenDoc = null; }
@@ -224,17 +229,18 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         ui.notifications.warn("The recorded companion token is not on the current scene. Its relationship was preserved.");
         return;
       }
-      await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id]);
       const updated = records.map(item => item.id === recordId
         ? { ...item, status: "in-vessel", tokenUuid: null }
         : item);
       try {
-        await TamerRecords.write(this.tamer, updated);
+        const saved = await TamerRecords.write(this.tamer, updated);
+        if (!saved) throw new Error("The companion storage state was not persisted.");
       } catch (error) {
         console.error("Tamer Manager | Could not save companion storage state.", error);
-        ui.notifications.error("The token was removed, but the companion status could not be saved. Refresh and check the record.");
+        ui.notifications.error("Could not save the storage state. The summoned token was left in place to avoid losing track of it.");
         return;
       }
+      await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id]);
       ui.notifications.info("Companion returned to storage.");
       await this.render({ force: true });
       return;
@@ -268,12 +274,15 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
     try {
-      await TamerRecords.write(this.tamer, records.map(item => item.id === recordId
+      const saved = await TamerRecords.write(this.tamer, records.map(item => item.id === recordId
         ? { ...item, status: "summoned", tokenUuid: created.uuid }
         : item));
+      if (!saved) throw new Error("The summoned companion state was not persisted.");
     } catch (error) {
-      console.error("Tamer Manager | Could not save summoned companion state.", error);
-      ui.notifications.error("The token was created, but its summoned state could not be saved. Do not summon it again until you check the scene.");
+      console.error("Tamer Manager | Could not save summoned companion state; removing newly created token.", error);
+      try { await scene.deleteEmbeddedDocuments("Token", [created.id]); }
+      catch (cleanupError) { console.error("Tamer Manager | Could not roll back orphaned companion token.", cleanupError); }
+      ui.notifications.error("The summoned state could not be saved. The newly created token was rolled back where possible.");
       return;
     }
     ui.notifications.info(`${actor.name} summoned.`);
