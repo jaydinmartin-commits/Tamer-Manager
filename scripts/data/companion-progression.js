@@ -28,11 +28,25 @@ export const CompanionProgression = Object.freeze({
     if (!context || typeof context !== "object") {
       return { valid: false, results: [], errors: ["A companion access context is required."] };
     }
+    if (!Array.isArray(providers)) {
+      return { valid: false, results: [], errors: ["Progression providers must be an array."] };
+    }
 
-    const normalizedProviders = (Array.isArray(providers) ? providers : [])
-      .map(normalizeProvider)
-      .filter(Boolean);
+    const normalizedProviders = providers.map(normalizeProvider);
+    if (normalizedProviders.some(provider => !provider)) {
+      return { valid: false, results: [], errors: ["One or more progression providers are invalid."] };
+    }
+    const providerIds = normalizedProviders.map(provider => provider.id);
+    if (new Set(providerIds).size !== providerIds.length) {
+      return { valid: false, results: [], errors: ["Progression provider IDs must be unique."] };
+    }
+
     const requestedIds = uniqueStrings(context.progressionProviderIds);
+    if (!Array.isArray(context.progressionProviderIds) ||
+        requestedIds.length !== context.progressionProviderIds.length) {
+      return { valid: false, results: [], errors: ["The access context has invalid progression provider IDs."] };
+    }
+
     const byId = new Map(normalizedProviders.map(provider => [provider.id, provider]));
     const errors = [];
     const results = [];
@@ -46,7 +60,8 @@ export const CompanionProgression = Object.freeze({
 
       try {
         const result = await provider.resolve(context);
-        if (!result || result.valid !== true || result.providerId !== id) {
+        if (!result || typeof result !== "object" || Array.isArray(result) ||
+            result.valid !== true || result.providerId !== id) {
           errors.push(`Progression provider ${id} returned an invalid result.`);
           continue;
         }
