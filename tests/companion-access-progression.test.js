@@ -135,7 +135,7 @@ await test("actual Tamer adapter uses the shared progression provider ID", async
   assert(result.source.progressionProviderIds[0] === "tamer-class", "Tamer adapter provider ID mismatch.");
 });
 
-await test("Tamer preview rejects invalid class levels without granting eligibility", async () => {
+await test("Tamer preview does not fabricate progression for invalid class levels", async () => {
   const owner = {
     uuid: "Actor.owner",
     items: [{
