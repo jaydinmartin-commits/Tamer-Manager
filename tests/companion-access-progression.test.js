@@ -236,6 +236,15 @@ await test("Tamer summary rejects out-of-range levels", () => {
   assertThrows(() => TamerCompanionSummary.forLevel(21), "Expected level 21 to be rejected.");
 });
 
+await test("fractional CR companions use the lowest training tier", () => {
+  for (const cr of [0, 0.125, 0.25, 0.375, 0.5, "1/8", "1/4"]) {
+    const result = TamerCompanionSummary.trainingFor(1, cr);
+    assert(result.eligible, `CR ${cr} should be eligible for the lowest tier; got ${JSON.stringify(result)}.`);
+    assert(result.improvements === 0 && result.hitDice === 0,
+      `CR ${cr} should use the level-1 lowest-tier training values.`);
+  }
+});
+
 
 await test("initialization application adds hit dice, hit points, and an idempotency ledger", async () => {
   const owner = { uuid: "Actor.owner" };
