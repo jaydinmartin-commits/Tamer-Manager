@@ -28,13 +28,13 @@ function getHitPoints(actor) {
 
 function getUpdatedNpcFormula(formula, constitutionModifier) {
   if (typeof formula !== "string") return null;
-  const match = formula.trim().match(/^(\\d*)d(\\d+)(.*)$/i);
+  const match = formula.trim().match(/^([0-9]*)d([0-9]+)(.*)$/i);
   if (!match) return null;
   const count = Number(match[1] || 1);
   const faces = Number(match[2]);
   if (!Number.isInteger(count) || count < 1 || !Number.isInteger(faces) || faces < 2) return null;
   let suffix = match[3] ?? "";
-  const trailingConstant = suffix.match(/^(.*?)([+-])(\\d+)\\s*$/);
+  const trailingConstant = suffix.match(/^(.*?)([+-])([0-9]+)\s*$/);
   if (trailingConstant) {
     const base = trailingConstant[1];
     const sign = trailingConstant[2] === "-" ? -1 : 1;
