@@ -96,7 +96,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
           : "",
         availableImprovements: actor && tamerLevel >= 1 ? (() => { try { return TamerCompanionSummary.trainingFor(tamerLevel, actor.system?.details?.cr ?? actor.system?.details?.challenge).improvements; } catch { return null; } })() : null,
         vesselName: record.vesselName || (record.vesselUuid ? "Assigned vessel" : "No vessel assigned"),
-        statusLabel: record.status === "summoned" ? "Summoned" : "In vessel",
+        statusLabel: record.status === "summoned" ? "Summoned" : (record.vesselUuid ? "Stored in vessel" : "Bonded"),
         actorExists: Boolean(actor),
         actorUuid: record.actorUuid ?? "",
         portrait: actor?.img ?? "icons/svg/mystery-man.svg",
