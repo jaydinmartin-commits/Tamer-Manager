@@ -42,6 +42,10 @@ The active module identity is `tamer-manager`. Its Foundry flag namespace, API n
 
 A later stage must not destabilize an earlier stable stage.
 
+## Persistence contract
+
+The authoritative-data, stale-reference, write/retry, schema migration, and test guarantees are defined in [`DATA_CONTRACTS.md`](./DATA_CONTRACTS.md). Domain modules must enforce these contracts independently of any application UI. In particular, normalization must not silently discard malformed persisted records, and initialization/relationship writes must support verified recovery after partial completion.
+
 ## Companion Options architecture
 
 The module uses a shared Companion Options infrastructure for configurable companion choices while keeping each game mechanic distinct.
@@ -53,5 +57,7 @@ The module uses a shared Companion Options infrastructure for configurable compa
 - Companion records store selections/references, not duplicated rule definitions.
 - Source Item UUIDs are optional references; a compendium is never required for the configuration system.
 - GM-defined configuration is authoritative.
+- Improvement-tree records are versioned metadata groupings. The option definition's `treeId` is the authoritative assignment; tree records do not duplicate option definitions.
+- Tree and option stores validate references and reject deletion while live references remain.
 
 Subclass requirements are evaluated against the Tamer Actor's actual dnd5e `subclass` Item and its class/subclass identifiers. This prevents a paradigm-specific option from being offered to a Tamer who does not have the required paradigm.
