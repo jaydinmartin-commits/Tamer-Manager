@@ -184,7 +184,7 @@ await test("initialization planning requires shared access and matching progress
   };
   const companion = {
     system: {
-      details: { cr: 0.25 },
+      details: { cr: 0.5 },
       attributes: { hd: { denomination: 8 } },
       abilities: { con: { mod: 2 } },
       identifier: "test-companion"
