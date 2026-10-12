@@ -1,5 +1,6 @@
 import { CompanionRecord } from "./companion-record.js";
 import { CompanionInitialization } from "./companion-initialization.js";
+import { CompanionInitializationApplication } from "./companion-initialization-application.js";
 
 const MODULE_ID = "tamer-manager";
 const FLAG_KEY = "companions";
@@ -41,13 +42,25 @@ export class TamerRecords {
 
   static async add(actor, companion) {
     const preview = await this.previewAdd(actor, companion);
-    if (!preview.eligible) return null;
+    if (!preview.eligible) return { record: null, reason: preview.reason ?? "initialization-preflight-failed" };
 
     const records = this.read(actor);
     const actorUuid = companion.uuid ?? null;
-    if (!actorUuid) return null;
+    if (!actorUuid) return { record: null, reason: "missing-companion-uuid" };
     const existing = records.find(record => record.actorUuid === actorUuid);
-    if (existing) return existing;
+    if (existing) return { record: existing, initialization: null };
+
+    // The Actor mutation is guarded by a deterministic application ID so retries
+    // cannot grant the same training hit dice twice.
+    const initialization = await CompanionInitializationApplication.apply({
+      owner: actor,
+      companion,
+      plan: preview,
+      applicationId: `${actor.uuid}::${companion.uuid}::initialization-v1`
+    });
+    if (!initialization.applied || !initialization.verified) {
+      return { record: null, reason: initialization.reason ?? "initialization-application-failed" };
+    }
 
     const record = CompanionRecord.create({
       id: foundry.utils.randomID(),
@@ -55,8 +68,9 @@ export class TamerRecords {
       actorUuid
     });
     records.push(record);
-    await this.write(actor, records);
-    return record;
+    const written = await this.write(actor, records);
+    if (!written) return { record: null, reason: "companion-record-persistence-failed", initialization };
+    return { record, initialization };
   }
 
   static async remove(actor, recordId) {
