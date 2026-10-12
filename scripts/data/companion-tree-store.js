@@ -74,7 +74,7 @@ export const CompanionTreeStore = Object.freeze({
   async upsert(tree) {
     if (!tree?.id) throw new Error("A companion tree ID is required.");
     const trees = this.list();
-    const normalized = { id: String(tree.id), name: String(tree.name ?? "").trim(), description: String(tree.description ?? "") };
+    const normalized = { ...clone(tree), id: String(tree.id), name: String(tree.name ?? "").trim(), description: String(tree.description ?? "") };
     const index = trees.findIndex(item => item.id === normalized.id);
     if (index < 0) trees.push(normalized); else trees[index] = normalized;
     return this.write(trees);
