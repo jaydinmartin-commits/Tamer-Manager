@@ -2,6 +2,7 @@ import { CompanionOptionStore } from "../scripts/data/companion-option-store.js"
 import { CompanionOptionValidator } from "../scripts/data/companion-option-validator.js";
 import { CompanionTreeStore } from "../scripts/data/companion-tree-store.js";
 import { TamerRecords } from "../scripts/data/tamer-records.js";
+import { CompanionRecord } from "../scripts/data/companion-record.js";
 import { CompanionInitializationApplication } from "../scripts/data/companion-initialization-application.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
@@ -47,6 +48,27 @@ const option = (id, extra = {}) => ({
   requirements: { tamerLevel: 1, companionIdentifiers: [] },
   repeatable: false, maxSelections: null, slotCost: 1, pointCost: 0,
   prerequisiteIds: [], replacesId: null, treeId: null, metadata: {}, ...extra
+});
+
+await test("companion record round-trip preserves vessel, summon, improvement, and splicer state", () => {
+  const input = {
+    id: "round-trip", name: "Test Companion", actorUuid: "Actor.companion",
+    vesselUuid: "Actor.tamer.Item.vessel", vesselName: "Pocket Vessel",
+    tokenUuid: "Scene.scene.Token.token", status: "summoned",
+    improvements: ["growth", { id: "keen-senses", rank: 2 }],
+    splicer: { augments: [{ id: "fire" }], pendingAugments: [{ id: "water" }] }
+  };
+  const normalized = CompanionRecord.normalize(input);
+  assert(normalized.vesselUuid === input.vesselUuid && normalized.vesselName === input.vesselName,
+    "Vessel assignment should survive normalization.");
+  assert(normalized.tokenUuid === input.tokenUuid && normalized.status === "summoned",
+    "Summoned token state should survive normalization.");
+  assert(normalized.improvements.length === 2 && normalized.improvements[1].rank === 2,
+    "Saved improvement selections should survive normalization.");
+  assert(normalized.splicer.augments[0].id === "fire" && normalized.splicer.pendingAugments[0].id === "water",
+    "Splicer augments and pending augments should survive normalization.");
+  const second = CompanionRecord.normalize(normalized);
+  assert(JSON.stringify(second) === JSON.stringify(normalized), "Record normalization should be idempotent.");
 });
 
 settings.set("tamer-manager.companionOptions", { schemaVersion: 1, definitions: [] });
