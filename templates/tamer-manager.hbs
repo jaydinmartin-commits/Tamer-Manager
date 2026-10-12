@@ -47,6 +47,16 @@
                   <span class="tamer-manager__stat-label">VESSEL</span>
                   <strong>{{vesselName}}</strong>
                   <span>{{statusLabel}}</span>
+                  <div class="tamer-manager__vessel-actions">
+                    <button type="button" data-action="assignVessel" data-record-id="{{id}}" title="Assign a vessel">
+                      <i class="fa-solid fa-box"></i> Assign
+                    </button>
+                    {{#if vesselUuid}}
+                      <button type="button" data-action="clearVessel" data-record-id="{{id}}" title="Clear vessel assignment">
+                        <i class="fa-solid fa-xmark"></i> Clear
+                      </button>
+                    {{/if}}
+                  </div>
                 </div>
                 <div class="tamer-manager__improvements">
                   <span class="tamer-manager__stat-label">IMPROVEMENTS</span>
