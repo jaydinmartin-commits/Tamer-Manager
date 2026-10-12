@@ -128,7 +128,7 @@ await test("initialization recovery repairs a failed relationship write without 
   let failRelationshipWrite = true;
   const tamer = {
     uuid: "Actor.tamer",
-    items: [{ type: "class", name: "Tamer", system: { identifier: "tamer", levels: 3 } }],
+    items: [{ uuid: "Actor.tamer.Item.tamer", type: "class", name: "Tamer", system: { identifier: "tamer", levels: 3 } }],
     system: { attributes: { prof: 2 } },
     getFlag: (scope, key) => tamerFlags[`${scope}.${key}`],
     setFlag: async (scope, key, value) => {
