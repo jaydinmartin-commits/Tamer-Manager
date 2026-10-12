@@ -32,7 +32,7 @@ function getUpdatedNpcFormula(formula, constitutionModifier) {
   // Only transform a single die term with an optional fixed integer modifier.
   // Dynamic expressions, extra dice, and other formula syntax must fail closed
   // rather than risk changing the meaning of the NPC's HP formula.
-  const match = formula.trim().match(/^([0-9]*)d([0-9]+)(?:\\s*([+-])\\s*([0-9]+))?\\s*$/i);
+  const match = formula.trim().match(/^([0-9]*)d([0-9]+)(?:\s*([+-])\s*([0-9]+))?\s*$/i);
   if (!match) return null;
 
   const count = Number(match[1] || 1);
