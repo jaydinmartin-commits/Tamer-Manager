@@ -6,6 +6,7 @@ import { TamerAccessPreview } from "../scripts/data/tamer-access-preview.js";
 import { TamerCompanionSummary } from "../scripts/data/tamer-companion-summary.js";
 import { TamerProgressionProvider } from "../scripts/data/tamer-progression-provider.js";
 import { CompanionInitialization } from "../scripts/data/companion-initialization.js";
+import { CompanionInitializationApplication } from "../scripts/data/companion-initialization-application.js";
 
 if (!globalThis.foundry) {
   globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
@@ -233,6 +234,77 @@ await test("initialization planning requires shared access and matching progress
 await test("Tamer summary rejects out-of-range levels", () => {
   assertThrows(() => TamerCompanionSummary.forLevel(0), "Expected level 0 to be rejected.");
   assertThrows(() => TamerCompanionSummary.forLevel(21), "Expected level 21 to be rejected.");
+});
+
+
+await test("initialization application adds hit dice, hit points, and an idempotency ledger", async () => {
+  const owner = { uuid: "Actor.owner" };
+  const flags = {};
+  const companion = {
+    uuid: "Actor.companion", type: "npc",
+    system: {
+      attributes: { hd: { denomination: 8, max: 1 }, hp: { value: 6, max: 10, formula: "1d8+2" } },
+      abilities: { con: { mod: 2 } }
+    },
+    getFlag: (scope, key) => flags[scope + "." + key],
+    setFlag: async (scope, key, value) => { flags[scope + "." + key] = structuredClone(value); },
+    update: async changes => {
+      for (const [path, value] of Object.entries(changes)) {
+        if (path.startsWith("system.")) {
+          const keys = path.split(".");
+          let target = companion;
+          for (const key of keys.slice(0, -1)) target = target[key] ??= {};
+          target[keys[keys.length - 1]] = value;
+        } else if (path.startsWith("flags.")) {
+          flags[path.slice("flags.".length)] = structuredClone(value);
+        }
+      }
+    }
+  };
+  const previousRoll = globalThis.Roll;
+  globalThis.Roll = class {
+    constructor(formula) { this.formula = formula; }
+    async evaluate() { return { total: 4 }; }
+  };
+  try {
+    const plan = { eligible: true, mutationRequired: true, training: { hitDice: 1 } };
+    const result = await CompanionInitializationApplication.apply({
+      owner, companion, plan, applicationId: "Actor.owner::Actor.companion::v1"
+    });
+    assert(result.applied && result.verified, "Expected the mechanical update to be verified.");
+    assert(companion.system.attributes.hd.max === 2, "Expected one hit die to be added.");
+    assert(companion.system.attributes.hp.max === 16, "Expected rolled hit die plus Constitution to increase max HP.");
+    assert(companion.system.attributes.hp.value === 12, "Expected current HP to increase by the same amount.");
+    assert(companion.system.attributes.hp.formula === "2d8+4", "Expected the HP formula to match the new hit dice.");
+    const repeat = await CompanionInitializationApplication.apply({
+      owner, companion, plan, applicationId: "Actor.owner::Actor.companion::v1"
+    });
+    assert(!repeat.eligible && repeat.reason === "already-applied", "Repeated application must be blocked.");
+    assert(CompanionInitializationApplication.history(companion).length === 1, "Expected one ledger entry.");
+  } finally {
+    if (previousRoll === undefined) delete globalThis.Roll;
+    else globalThis.Roll = previousRoll;
+  }
+});
+
+await test("initialization application fails closed for unsupported HP formulas", () => {
+  const companion = {
+    uuid: "Actor.companion", type: "npc",
+    system: {
+      attributes: { hd: { denomination: 8, max: 1 }, hp: { value: 6, max: 10, formula: "@abilities.con.mod * 2" } },
+      abilities: { con: { mod: 2 } }
+    },
+    getFlag: () => [],
+    setFlag: async () => {},
+    update: async () => {}
+  };
+  const result = CompanionInitializationApplication.preview({
+    owner: { uuid: "Actor.owner" }, companion,
+    plan: { eligible: true, mutationRequired: true, training: { hitDice: 1 } },
+    applicationId: "unsupported-formula"
+  });
+  assert(!result.eligible && result.reason === "unsupported-or-inconsistent-hp-formula",
+    "Unexpected formula shapes must not be rewritten automatically.");
 });
 
 const failed = testResults.filter(result => !result.passed);
