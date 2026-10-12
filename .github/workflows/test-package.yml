@@ -1,0 +1,48 @@
+name: Build testable Foundry package
+
+on:
+  push:
+    branches:
+      - feat/companion-initialization-application
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact tested commit
+        uses: actions/checkout@v4
+
+      - name: Validate module manifest and required UI files
+        shell: bash
+        run: |
+          test -f module.json
+          test -f scripts/main.js
+          test -f scripts/tamer-development-panel.js
+          test -f templates/tamer-development-panel.hbs
+          node -e 'const fs=require("fs"); const m=JSON.parse(fs.readFileSync("module.json","utf8")); if (m.id !== "tamer-manager") throw new Error("Unexpected module id"); if (!m.version) throw new Error("Missing module version"); if (!m.esmodules.includes("scripts/main.js")) throw new Error("Main module entry point missing");'
+          node --experimental-default-type=module --check scripts/main.js
+          node --experimental-default-type=module --check scripts/tamer-development-panel.js
+          node --experimental-default-type=module --check scripts/data/companion-initialization-application.js
+
+      - name: Build installable test archive
+        shell: bash
+        run: |
+          VERSION=$(node -p 'require("./module.json").version')
+          SHORT_SHA=${GITHUB_SHA::12}
+          mkdir -p dist
+          zip -qr "dist/tamer-manager-test-v${VERSION}-${SHORT_SHA}.zip" . -x '.git/*' '.github/*' 'dist/*' 'tamer-manager-*.zip'
+
+      - name: Upload test package
+        uses: actions/upload-artifact@v4
+        with:
+          name: tamer-manager-foundry-test-${{ github.sha }}
+          path: dist/tamer-manager-test-*.zip
+          if-no-files-found: error
+          retention-days: 14
