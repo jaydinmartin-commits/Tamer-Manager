@@ -158,6 +158,7 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
         const definition = CompanionOptionStore.get(selectedId);
         if (!definition || definition.type !== "improvement") throw new Error("That registered improvement no longer exists.");
         const issues = [];
+        try { CompanionOptionStore.validate(); } catch (validationError) { issues.push("Registration validation: " + String(validationError?.message ?? validationError)); }
         if (!owner) issues.push("Select a Tamer to check level requirements.");
         else if (!CompanionOptions.isAvailable(definition, { tamer: owner, companion: { actorUuid: companion.uuid } })) issues.push("Tamer-level or companion-identifier requirements are not met.");
         this.improvementReport = { title: issues.length ? "Registration/eligibility check failed" : "Registration/eligibility check passed", status: issues.length ? "failed" : "passed", canApply: false, details: ["Name: " + definition.name + " (" + definition.id + ")", "Source Item: " + (definition.sourceUuid || "not linked"), "Tamer level required: " + (definition.requirements?.tamerLevel ?? 0), "Prerequisites: " + (definition.prerequisiteIds?.join(", ") || "none"), "Repeatable: " + (definition.repeatable ? "yes" : "no") + "; max selections: " + (definition.maxSelections ?? 1), ...issues, ...(issues.length ? [] : ["No mechanical adapter is registered for this option yet; it can be configured and validated but not applied here."])] };
