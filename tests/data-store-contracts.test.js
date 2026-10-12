@@ -171,7 +171,7 @@ await test("initialization recovery repairs a failed relationship write without 
   try {
     const first = await TamerRecords.add(tamer, companion);
     assert(!first.record && first.reason === "companion-record-persistence-failed",
-      "First add should report the relationship persistence failure.");
+      `First add should report relationship persistence failure; got ${JSON.stringify(first)}`);
     const ledgerBefore = TamerRecords.read(tamer);
     assert(ledgerBefore.length === 0, "Failed relationship write must not claim a relationship.");
     const hitDiceAfterFirst = companion.system.attributes.hd.max;
