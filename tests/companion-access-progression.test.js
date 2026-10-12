@@ -1,4 +1,5 @@
 import { CompanionAccessContext } from "../scripts/data/companion-access-context.js";
+import { CompanionAccessResolver } from "../scripts/data/companion-access-resolver.js";
 import { CompanionProgression } from "../scripts/data/companion-progression.js";
 
 if (!globalThis.foundry) {
@@ -56,6 +57,36 @@ await test("access context rejects invalid and duplicate source definitions", ()
       { id: "same", type: "feat", documentUuid: "Item.b", allowedOperations: [], progressionProviderIds: [] }
     ]
   }), "Expected duplicate source ID to be rejected.");
+});
+
+await test("access resolver combines independently validated sources", async () => {
+  const result = await CompanionAccessResolver.resolve({
+    owner: { uuid: "Actor.owner" },
+    adapters: [{
+      id: "tamer-class",
+      resolve: async () => ({
+        valid: true,
+        source: {
+          id: "tamer-class",
+          type: "class",
+          documentUuid: "Actor.owner.Item.tamer",
+          allowedOperations: [CompanionAccessResolver.operations.OPEN_MANAGER],
+          progressionProviderIds: ["tamer"],
+          metadata: {}
+        }
+      })
+    }]
+  });
+  assert(result.valid, "Expected valid access adapter to resolve.");
+  assert(CompanionAccessContext.can(result.context, CompanionAccessResolver.operations.OPEN_MANAGER), "Expected manager permission.");
+});
+
+await test("access resolver rejects invalid adapter output", async () => {
+  const result = await CompanionAccessResolver.resolve({
+    owner: { uuid: "Actor.owner" },
+    adapters: [{ id: "tamer-class", resolve: async () => ({ valid: true, source: { id: "wrong" } }) }]
+  });
+  assert(!result.valid && result.context === null, "Expected invalid adapter output to fail closed.");
 });
 
 await test("progression fails closed when provider is missing", async () => {
