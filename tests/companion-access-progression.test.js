@@ -212,7 +212,7 @@ await test("initialization planning requires shared access and matching progress
     owner,
     companion: { ...companion, system: { ...companion.system, details: { cr: 1.5 } } }
   });
-  assert(!unsupportedCR.eligible, "An unsupported CR band must not create an eligible initialization plan.");
+  assert(!unsupportedCR.eligible, "A CR above the Tamer limit must not create an eligible initialization plan.");
 });
 
 await test("Tamer summary rejects out-of-range levels", () => {
