@@ -130,7 +130,7 @@ await test("initialization recovery repairs a failed relationship write without 
   let failRelationshipWrite = true;
   const tamer = {
     uuid: "Actor.tamer", system: { attributes: { prof: 2 } },
-    items: [{ type: "class", name: "Tamer", system: { identifier: "tamer", levels: 3 } }],
+    items: [{ uuid: "Actor.tamer.Item.tamer", type: "class", name: "Tamer", system: { identifier: "tamer", levels: 3 } }],
     getFlag: (scope, key) => tamerFlags[`${scope}.${key}`],
     setFlag: async (scope, key, value) => {
       if (failRelationshipWrite) { failRelationshipWrite = false; throw new Error("injected relationship write failure"); }
