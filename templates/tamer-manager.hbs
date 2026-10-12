@@ -21,15 +21,36 @@
       <div class="tamer-manager__companions">
         {{#each companions}}
           <article class="tamer-manager__card {{#unless actorExists}}is-missing{{/unless}}" data-record-id="{{id}}">
-            <div class="tamer-manager__identity">
-              <strong>{{actorName}}</strong>
+            <div class="tamer-manager__portrait-wrap">
+              <img class="tamer-manager__portrait" src="{{portrait}}" alt="{{actorName}}" loading="lazy">
+            </div>
+            <div class="tamer-manager__details">
+              <header class="tamer-manager__card-header">
+                <div class="tamer-manager__identity">
+                  <strong>{{actorName}}</strong>
+                  <span class="tamer-manager__type">{{#if actorType}}{{actorType}}{{else}}Companion{{/if}}</span>
+                </div>
+                <span class="tamer-manager__slot">SLOT {{slot}}</span>
+              </header>
               {{#if actorExists}}
-                <span class="tamer-manager__summary">
-                  {{#if challengeRating}}CR {{challengeRating}}{{/if}}
-                  {{#if size}} · {{size}}{{/if}}
-                  {{#if hitPointsMax}} · HP {{hitPoints}}/{{hitPointsMax}}{{/if}}
-                </span>
-                <span class="tamer-manager__reference">{{actorUuid}}</span>
+                <div class="tamer-manager__stats">
+                  <div><span class="tamer-manager__stat-label">HP</span><strong>{{#if hitPointsMax}}{{hitPoints}} / {{hitPointsMax}}{{else}}—{{/if}}</strong></div>
+                  <div><span class="tamer-manager__stat-label">AC</span><strong>{{#if armorClass}}{{armorClass}}{{else}}—{{/if}}</strong></div>
+                </div>
+                <div class="tamer-manager__status">
+                  <span class="tamer-manager__stat-label">CHALLENGE RATING</span>
+                  <strong>{{#if challengeRating}}CR {{challengeRating}}{{else}}—{{/if}}</strong>
+                  {{#if size}}<span>{{size}}</span>{{/if}}
+                </div>
+                <div class="tamer-manager__status">
+                  <span class="tamer-manager__stat-label">VESSEL</span>
+                  <strong>No vessel assigned</strong>
+                </div>
+                <div class="tamer-manager__improvements">
+                  <span class="tamer-manager__stat-label">IMPROVEMENTS</span>
+                  <strong>0 / 11</strong>
+                  <button type="button" disabled title="Improvement selection is not available in this manager build"><i class="fa-solid fa-cube"></i> Choose Improvements</button>
+                </div>
               {{else}}
                 <span class="tamer-manager__missing">Actor reference unavailable — relationship preserved</span>
                 <span class="tamer-manager__reference">{{actorUuid}}</span>
