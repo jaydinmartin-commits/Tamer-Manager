@@ -1,0 +1,60 @@
+<section class="tamer-manager__root tamer-development__root">
+  <header class="tamer-manager__header">
+    <div>
+      <h2>Development & Testing</h2>
+      <p class="tamer-manager__tamer">GM-only tools for validating companion initialization without the console.</p>
+    </div>
+    <button type="button" data-action="refresh"><i class="fa-solid fa-rotate"></i> Reset</button>
+  </header>
+
+  <main class="tamer-manager__body">
+    <section class="tamer-development__section">
+      <h3>1. Choose test Actors</h3>
+      <form class="tamer-development__form">
+        <label for="tamer-development-owner">Tamer</label>
+        <select id="tamer-development-owner" name="owner">
+          <option value="">Select a Tamer…</option>
+          {{#each owners}}
+            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
+        <label for="tamer-development-companion">Companion NPC</label>
+        <select id="tamer-development-companion" name="companion">
+          <option value="">Select an Actor…</option>
+          {{#each companions}}
+            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
+        <p class="tamer-development__note">Use a duplicate NPC in a test world. The preflight button is read-only; applying initialization changes the selected Actor.</p>
+        <div class="tamer-development__actions">
+          <button type="button" data-action="openOwner">Open Tamer Sheet</button>
+          <button type="button" data-action="openCompanion">Open Companion Sheet</button>
+          <button type="button" data-action="runPreflight" {{#if busy}}disabled{{/if}}>Run Preflight Tests</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="tamer-development__section">
+      <h3>2. Results</h3>
+      {{#if report}}
+        <div class="tamer-development__report {{#if (eq report.status 'passed')}}is-passed{{else}}is-failed{{/if}}">
+          <h4>{{report.title}}</h4>
+          <ul>
+            {{#each report.details}}
+              <li>{{this}}</li>
+            {{/each}}
+          </ul>
+        </div>
+      {{else}}
+        <p class="tamer-manager__empty">No tests have run in this session yet. Choose Actors and run the preflight.</p>
+      {{/if}}
+    </section>
+
+    <section class="tamer-development__section">
+      <h3>3. Apply initialization</h3>
+      <p>This step writes the planned training hit dice and rolled HP increase to the companion Actor. It requires a successful preflight and asks for confirmation before changing data.</p>
+      <button type="button" data-action="applyInitialization" {{#unless canApply}}disabled{{/unless}}>Apply Initialization to Selected NPC</button>
+      <p class="tamer-development__note">This is not a rollback-capable sandbox. Use a disposable test Actor. Re-running the same initialization is blocked by its ledger.</p>
+    </section>
+  </main>
+</section>
