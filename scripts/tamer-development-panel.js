@@ -24,14 +24,17 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
     window: { title: "Tamer Manager — Development & Testing", resizable: true },
     position: { width: 760, height: 720 },
     actions: {
-      refresh: TamerDevelopmentPanel._onRefresh,
-      openOptionSettings: TamerDevelopmentPanel._onOpenOptionSettings,
-      runPreflight: TamerDevelopmentPanel._onRunPreflight,
-      applyInitialization: TamerDevelopmentPanel._onApplyInitialization,
-      testImprovement: TamerDevelopmentPanel._onTestImprovement,
-      applyToughenUp: TamerDevelopmentPanel._onApplyToughenUp,
-      openOwner: TamerDevelopmentPanel._onOpenOwner,
-      openCompanion: TamerDevelopmentPanel._onOpenCompanion
+      // ApplicationV2 action handlers are instance methods; bind their method
+      // references through the prototype so the framework can invoke them on
+      // the live application instance.
+      refresh: TamerDevelopmentPanel.prototype._onRefresh,
+      openOptionSettings: TamerDevelopmentPanel.prototype._onOpenOptionSettings,
+      runPreflight: TamerDevelopmentPanel.prototype._onRunPreflight,
+      applyInitialization: TamerDevelopmentPanel.prototype._onApplyInitialization,
+      testImprovement: TamerDevelopmentPanel.prototype._onTestImprovement,
+      applyToughenUp: TamerDevelopmentPanel.prototype._onApplyToughenUp,
+      openOwner: TamerDevelopmentPanel.prototype._onOpenOwner,
+      openCompanion: TamerDevelopmentPanel.prototype._onOpenCompanion
     }
   };
 
@@ -47,6 +50,7 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
     this.lastPlan = null;
     this.applicationId = "";
     this.improvementId = "";
+    this.improvementApplicationId = "";
     this.improvementReport = null;
     this.busy = false;
   }
@@ -155,7 +159,9 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
       if (!companion) throw new Error("Select a companion Actor first.");
       if (!selectedId) throw new Error("Choose an improvement first.");
       if (selectedId === "builtin:toughen-up") {
-        const preview = ToughenUpApplication.preview({ actor: companion, applicationId: companion.uuid + "::toughen-up::dev-test" });
+        // Give each explicit test a unique ID; preserve it through Apply.
+        this.improvementApplicationId = `${companion.uuid}::toughen-up::dev-test::${foundry.utils.randomID()}`;
+        const preview = ToughenUpApplication.preview({ actor: companion, applicationId: this.improvementApplicationId });
         this.improvementReport = { title: preview.eligible ? "Toughen Up preflight passed" : "Toughen Up preflight failed", status: preview.eligible ? "passed" : "failed", canApply: Boolean(preview.eligible), details: preview.eligible ? ["Actor: " + companion.name, "Hit die: d" + preview.denomination + "; count: " + preview.hitDiceBefore, "HP formula: " + preview.formulaBefore + " → " + preview.formulaAfter, "Constitution modifier: " + preview.constitutionModifier, "This preview is read-only."] : ["Blocked: " + preview.reason] };
       } else {
         const definition = CompanionOptionStore.get(selectedId);
@@ -176,7 +182,10 @@ export class TamerDevelopmentPanel extends HandlebarsApplicationMixin(Applicatio
     try {
       const { companion } = await this._selectedActors(target);
       if (!companion) throw new Error("Select a companion Actor first.");
-      const applicationId = companion.uuid + "::toughen-up::dev-test";
+      const applicationId = this.improvementApplicationId;
+      if (!applicationId || !applicationId.startsWith(`${companion.uuid}::toughen-up::dev-test::`)) {
+        throw new Error("Run the Toughen Up preflight again before applying.");
+      }
       const preview = ToughenUpApplication.preview({ actor: companion, applicationId });
       if (!preview.eligible) throw new Error("Toughen Up is blocked: " + preview.reason);
       const confirmed = await foundry.applications.api.DialogV2.confirm({ window: { title: "Apply Toughen Up (Test)" }, content: "<p>This permanently adds one hit die and rolls its HP increase for <strong>" + foundry.utils.escapeHTML(companion.name) + "</strong>.</p><p>Use a disposable test NPC. This test action is recorded to prevent duplicate application.</p>", yes: { label: "Apply Toughen Up" }, no: { label: "Cancel" } });
