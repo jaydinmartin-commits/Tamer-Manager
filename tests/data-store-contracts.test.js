@@ -169,7 +169,8 @@ await test("initialization recovery repairs a failed relationship write without 
   };
   const oldRoll = globalThis.Roll;
   const oldRandomID = globalThis.foundry.utils.randomID;
-  globalThis.foundry.utils.randomID = () => `test-${Math.random().toString(36).slice(2)}`;
+  let generatedId = 0;
+  globalThis.foundry.utils.randomID = () => `test-record-${++generatedId}`;
   globalThis.Roll = class { constructor(formula) { this.formula = formula; } async evaluate() { return { total: 4 }; } };
   try {
     const applicationId = `${tamer.uuid}::${companion.uuid}::initialization-v1`;
