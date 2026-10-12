@@ -63,7 +63,9 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         actorExists: Boolean(actor),
         actorUuid: record.actorUuid ?? "",
         portrait: actor?.img ?? "icons/svg/mystery-man.svg",
-        actorType: actor?.system?.details?.type?.value ?? actor?.system?.details?.type ?? actor?.type ?? null,
+        actorType: typeof actor?.system?.details?.type?.value === "string"
+          ? actor.system.details.type.value
+          : (typeof actor?.system?.details?.type === "string" ? actor.system.details.type : actor?.type ?? null),
         challengeRating: actor?.system?.details?.cr ?? null,
         size: actor?.system?.traits?.size ?? null,
         hitPoints: actor?.system?.attributes?.hp?.value ?? null,
