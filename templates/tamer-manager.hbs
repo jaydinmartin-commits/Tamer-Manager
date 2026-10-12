@@ -1,16 +1,18 @@
 <section class="tamer-manager__root">
   <header class="tamer-manager__header">
     <div>
-      <h2>Tamer Manager</h2>
-      {{#if tamer}}
-        <p class="tamer-manager__tamer">{{tamer.name}}</p>
+      <h2>Companion Manager</h2>
+      {{#if hasTamer}}
+        <p class="tamer-manager__tamer">Managing companions for <strong>{{tamer.name}}</strong></p>
       {{else}}
         <p class="tamer-manager__tamer">No Tamer selected</p>
       {{/if}}
     </div>
     <div class="tamer-manager__actions">
-      <button type="button" data-action="addCompanion"><i class="fa-solid fa-plus"></i> Add Companion</button>
-      <button type="button" data-action="refresh" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+      {{#if canManage}}
+        <button type="button" data-action="addCompanion"><i class="fa-solid fa-plus"></i> Add Companion</button>
+      {{/if}}
+      <button type="button" data-action="refresh" title="Refresh companion list" aria-label="Refresh"><i class="fa-solid fa-rotate"></i></button>
     </div>
   </header>
 
@@ -18,19 +20,40 @@
     {{#if companions.length}}
       <div class="tamer-manager__companions">
         {{#each companions}}
-          <article class="tamer-manager__card" data-record-id="{{id}}">
+          <article class="tamer-manager__card {{#unless actorExists}}is-missing{{/unless}}" data-record-id="{{id}}">
             <div class="tamer-manager__identity">
-              <strong>{{name}}</strong>
-              <span>{{actorUuid}}</span>
+              <strong>{{actorName}}</strong>
+              {{#if actorExists}}
+                <span class="tamer-manager__summary">
+                  {{#if challengeRating}}CR {{challengeRating}}{{/if}}
+                  {{#if size}} · {{size}}{{/if}}
+                  {{#if hitPointsMax}} · HP {{hitPoints}}/{{hitPointsMax}}{{/if}}
+                </span>
+                <span class="tamer-manager__reference">{{actorUuid}}</span>
+              {{else}}
+                <span class="tamer-manager__missing">Actor reference unavailable — relationship preserved</span>
+                <span class="tamer-manager__reference">{{actorUuid}}</span>
+              {{/if}}
             </div>
-            <button type="button" data-action="removeCompanion" data-record-id="{{id}}" title="Remove companion">
-              <i class="fa-solid fa-trash"></i>
-            </button>
+            <div class="tamer-manager__card-actions">
+              {{#if actorExists}}
+                <button type="button" data-action="openCompanion" data-actor-uuid="{{actorUuid}}" title="Open companion sheet">
+                  <i class="fa-solid fa-up-right-from-square"></i><span class="visually-hidden">Open companion sheet</span>
+                </button>
+              {{/if}}
+              <button type="button" data-action="removeCompanion" data-record-id="{{id}}" title="Unlink companion">
+                <i class="fa-solid fa-link-slash"></i><span class="visually-hidden">Unlink companion</span>
+              </button>
+            </div>
           </article>
         {{/each}}
       </div>
     {{else}}
-      <p class="tamer-manager__empty">No companions are currently bonded.</p>
+      <div class="tamer-manager__empty-state">
+        <i class="fa-solid fa-paw" aria-hidden="true"></i>
+        <h3>No bonded companions yet</h3>
+        <p>Add an eligible NPC Actor to initialize it and register the relationship with this Tamer.</p>
+      </div>
     {{/if}}
   </main>
 </section>
