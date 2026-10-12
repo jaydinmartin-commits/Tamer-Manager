@@ -16,6 +16,12 @@ function normalizeSource(source) {
   const type = cleanString(source.type);
   const documentUuid = cleanString(source.documentUuid);
   if (!id || !ACCESS_SOURCE_TYPES.has(type) || !documentUuid) return null;
+  if (!Array.isArray(source.allowedOperations) || !Array.isArray(source.progressionProviderIds)) {
+    return null;
+  }
+  if (source.metadata != null && (typeof source.metadata !== "object" || Array.isArray(source.metadata))) {
+    return null;
+  }
 
   return {
     id,
@@ -24,9 +30,7 @@ function normalizeSource(source) {
     name: cleanString(source.name),
     allowedOperations: uniqueStrings(source.allowedOperations),
     progressionProviderIds: uniqueStrings(source.progressionProviderIds),
-    metadata: source.metadata && typeof source.metadata === "object"
-      ? foundry.utils.deepClone(source.metadata)
-      : {}
+    metadata: source.metadata ? foundry.utils.deepClone(source.metadata) : {}
   };
 }
 
@@ -49,12 +53,13 @@ export const CompanionAccessContext = Object.freeze({
       throw new Error("Companion access source IDs must be unique.");
     }
 
+    const providerIds = normalizedSources.flatMap(source => source.progressionProviderIds);
     return {
       ownerUuid: normalizedOwnerUuid,
       companionId: companionId == null ? null : cleanString(companionId) || null,
       sources: normalizedSources,
       allowedOperations: uniqueStrings(normalizedSources.flatMap(source => source.allowedOperations)),
-      progressionProviderIds: uniqueStrings(normalizedSources.flatMap(source => source.progressionProviderIds))
+      progressionProviderIds: uniqueStrings(providerIds)
     };
   },
 
