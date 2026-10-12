@@ -5,6 +5,7 @@ import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptionDefinition } from "./data/companion-option-definition.js";
 import { CompanionOptionStore } from "./data/companion-option-store.js";
 import { CompanionOptionValidator } from "./data/companion-option-validator.js";
+import { CompanionTreeStore } from "./data/companion-tree-store.js";
 import { CompanionOptions } from "./data/companion-options.js";
 import { CompanionSelection } from "./data/companion-selection.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
@@ -28,6 +29,13 @@ Hooks.once("init", () => {
     default: { schemaVersion: 1, definitions: [] }
   });
 
+  game.settings.register(MODULE_ID, "companionTrees", {
+    name: "Tamer Manager Companion Trees",
+    hint: "Internal configuration storage for named companion improvement trees.",
+    scope: "world", config: false, type: Object,
+    default: { schemaVersion: 1, trees: [] }
+  });
+
   game.settings.registerMenu(MODULE_ID, "developmentPanel", {
     name: "Development & Testing",
     label: "Open Test Panel",
@@ -46,6 +54,25 @@ Hooks.once("init", () => {
     restricted: true
   });
 
+  // Foundry v14 dispatches ApplicationV2 header controls through class-specific hooks.
+  // D&D 5e v6's CharacterActorSheet extends BaseActorSheet, which in turn extends
+  // foundry.applications.sheets.ActorSheetV2. Register the concrete system class hook
+  // and the core base hook for compatibility with sheets using the base class directly.
+  const addCompanionManagerHeaderControl = (app, controls) => {
+    const actor = app?.document ?? app?.actor ?? app?.object;
+    if (!actor || !TamerRecords.isTamer(actor) || !Array.isArray(controls)) return;
+    if (controls.some(control => control.action === "openTamerCompanionManager")) return;
+    controls.push({
+      action: "openTamerCompanionManager",
+      label: "Companion Manager",
+      icon: "fa-solid fa-paw",
+      visible: true,
+      onClick: () => TamerManager.openFor(actor)
+    });
+  };
+  Hooks.on("getHeaderControlsCharacterActorSheet", addCompanionManagerHeaderControl);
+  Hooks.on("getHeaderControlsActorSheetV2", addCompanionManagerHeaderControl);
+
   game.modules.get(MODULE_ID).api = {
     TamerManager,
     TamerDevelopmentPanel,
@@ -54,6 +81,7 @@ Hooks.once("init", () => {
     CompanionOptionDefinition,
     CompanionOptionStore,
     CompanionOptionValidator,
+    CompanionTreeStore,
     CompanionOptions,
     CompanionSelection,
     TamerCompanionSummary,

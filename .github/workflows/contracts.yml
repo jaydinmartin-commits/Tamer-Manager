@@ -21,3 +21,5 @@ jobs:
         run: find scripts tests -name "*.js" -print0 | xargs -0 -n1 node --experimental-default-type=module --check
       - name: Run companion access, progression, and initialization contracts
         run: node --experimental-default-type=module tests/companion-access-progression.test.js
+      - name: Run persistence, option-store, and tree-store contracts
+        run: node --experimental-default-type=module tests/data-store-contracts.test.js

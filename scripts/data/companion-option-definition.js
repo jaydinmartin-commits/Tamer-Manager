@@ -74,10 +74,16 @@ export const CompanionOptionDefinition = Object.freeze({
   normalize(record) {
     if (!record?.id) return null;
 
-    return this.create({
-      ...clone(record),
-      requirements: record.requirements ?? {},
-      companionIdentifiers: record.requirements?.companionIdentifiers ?? []
+    const source = clone(record);
+    const normalized = this.create({
+      ...source,
+      requirements: source.requirements ?? {},
+      companionIdentifiers: source.requirements?.companionIdentifiers ?? []
     });
+
+    // Preserve extension fields from newer or third-party data. Known fields are
+    // normalized above; unknown fields must not disappear during an ordinary read
+    // or write cycle. Schema migrations may explicitly transform them later.
+    return { ...source, ...normalized };
   }
 });

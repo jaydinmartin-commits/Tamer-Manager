@@ -91,3 +91,69 @@
 .tamer-development__report h4 { margin: 0 0 0.5rem; }
 .tamer-development__report ul { margin: 0; padding-left: 1.25rem; }
 .tamer-development__section button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.tamer-manager .tamer-manager__card.is-missing {
+  border-style: dashed;
+  opacity: 0.9;
+}
+
+.tamer-manager .tamer-manager__summary {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.tamer-manager .tamer-manager__reference {
+  font-size: 0.72rem;
+  opacity: 0.65;
+  overflow-wrap: anywhere;
+}
+
+.tamer-manager .tamer-manager__missing {
+  color: var(--color-level-warning, #9b6b18);
+  font-size: 0.82rem;
+}
+
+.tamer-manager .tamer-manager__card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+}
+
+.tamer-manager .tamer-manager__card-actions button {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+.tamer-manager .tamer-manager__empty-state {
+  min-height: 14rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  text-align: center;
+  opacity: 0.85;
+}
+
+.tamer-manager .tamer-manager__empty-state > i {
+  font-size: 2rem;
+  opacity: 0.65;
+}
+
+.tamer-manager .tamer-manager__empty-state h3,
+.tamer-manager .tamer-manager__empty-state p {
+  margin: 0;
+}
+
+.tamer-manager .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

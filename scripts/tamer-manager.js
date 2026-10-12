@@ -36,7 +36,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     actions: {
       refresh: TamerManager._onRefresh,
       addCompanion: TamerManager._onAddCompanion,
-      removeCompanion: TamerManager._onRemoveCompanion
+      removeCompanion: TamerManager._onRemoveCompanion,
+      openCompanion: TamerManager._onOpenCompanion
     }
   };
   static PARTS = {
@@ -49,8 +50,36 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _prepareContext() {
-    return { moduleId: MODULE_ID, tamer: this.tamer,
-      companions: this.tamer ? TamerRecords.read(this.tamer) : [] };
+    const records = this.tamer ? TamerRecords.read(this.tamer) : [];
+    const companions = await Promise.all(records.map(async record => {
+      let actor = null;
+      if (record.actorUuid) {
+        try { actor = await fromUuid(record.actorUuid); }
+        catch { actor = null; }
+      }
+      return {
+        ...record,
+        actorName: actor?.name ?? record.name ?? "Missing companion Actor",
+        actorExists: Boolean(actor),
+        actorUuid: record.actorUuid ?? "",
+        challengeRating: actor?.system?.details?.cr ?? null,
+        size: actor?.system?.traits?.size ?? null,
+        hitPoints: actor?.system?.attributes?.hp?.value ?? null,
+        hitPointsMax: actor?.system?.attributes?.hp?.max ?? null
+      };
+    }));
+    return { moduleId: MODULE_ID, tamer: this.tamer, companions,
+      hasTamer: Boolean(this.tamer), canManage: Boolean(this.tamer && TamerRecords.isTamer(this.tamer)) };
+  }
+
+  static async openFor(tamer) {
+    if (!tamer || !TamerRecords.isTamer(tamer)) {
+      ui.notifications.warn("Open Companion Manager from a character with the Tamer class.");
+      return null;
+    }
+    const app = new this({ tamer });
+    await app.render({ force: true });
+    return app;
   }
 
   static async chooseTamer() {
@@ -74,9 +103,10 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     return result ? fromUuid(result).catch(() => null) : null;
   }
 
-  static async chooseActor() {
-    const existing = new Set(TamerRecords.read(this.tamer).map(record => record.actorUuid));
-    const candidates = (game.actors?.contents ?? []).filter(actor => actor !== this.tamer && !existing.has(actor.uuid));
+  static async chooseActor(tamer) {
+    if (!tamer || !TamerRecords.isTamer(tamer)) return null;
+    const existing = new Set(TamerRecords.read(tamer).map(record => record.actorUuid));
+    const candidates = (game.actors?.contents ?? []).filter(actor => actor !== tamer && actor.type === "npc" && !existing.has(actor.uuid));
     if (!candidates.length) {
       ui.notifications.warn("No eligible unregistered Actor documents are available to add.");
       return null;
@@ -99,7 +129,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static async _onAddCompanion() {
     if (!this.tamer) return;
-    const actor = await this.constructor.chooseActor();
+    const actor = await this.constructor.chooseActor(this.tamer);
     if (!actor) return;
 
     const preview = await TamerRecords.previewAdd(this.tamer, actor);
@@ -117,11 +147,47 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     await this.render({ force: true });
   }
 
+  static async _onOpenCompanion(event, target) {
+    const uuid = target?.dataset?.actorUuid;
+    if (!uuid) return;
+    const actor = await fromUuid(uuid).catch(() => null);
+    if (!actor) {
+      ui.notifications.warn("That companion Actor is no longer available. Its saved relationship was preserved.");
+      await this.render({ force: true });
+      return;
+    }
+    actor.sheet?.render(true);
+  }
+
   static async _onRemoveCompanion(event, target) {
     const recordId = target?.dataset?.recordId;
     if (!recordId || !this.tamer) return;
-    const removed = await TamerRecords.remove(this.tamer, recordId);
-    if (removed) await this.render({ force: true });
+    const record = TamerRecords.read(this.tamer).find(item => item.id === recordId);
+    if (!record) {
+      ui.notifications.warn("That companion relationship no longer exists.");
+      await this.render({ force: true });
+      return;
+    }
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: "Unlink Companion" },
+      content: `<p>Unlink <strong>${foundry.utils.escapeHTML(record.name || "this companion")}</strong> from ${foundry.utils.escapeHTML(this.tamer.name)}?</p><p>This removes only the relationship. It does not delete the Actor or reverse previously applied initialization benefits.</p>`,
+      yes: { label: "Unlink companion" },
+      no: { label: "Cancel" }
+    });
+    if (!confirmed) return;
+    try {
+      const removed = await TamerRecords.remove(this.tamer, recordId);
+      if (removed) {
+        ui.notifications.info("Companion unlinked. The Actor itself was not deleted.");
+        await this.render({ force: true });
+      } else {
+        ui.notifications.warn("The companion relationship was not changed. Refresh the manager and try again.");
+      }
+    } catch (error) {
+      console.error("Tamer Manager | Failed to persist companion unlink.", error);
+      ui.notifications.error("Could not save the unlink. The relationship has been kept; refresh before retrying.");
+      await this.render({ force: true });
+    }
   }
 }
 globalThis.TamerManager = TamerManager;
