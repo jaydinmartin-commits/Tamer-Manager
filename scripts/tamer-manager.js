@@ -62,10 +62,14 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         actorName: actor?.name ?? record.name ?? "Missing companion Actor",
         actorExists: Boolean(actor),
         actorUuid: record.actorUuid ?? "",
+        portrait: actor?.img ?? "icons/svg/mystery-man.svg",
+        actorType: actor?.system?.details?.type?.value ?? actor?.system?.details?.type ?? actor?.type ?? null,
         challengeRating: actor?.system?.details?.cr ?? null,
         size: actor?.system?.traits?.size ?? null,
         hitPoints: actor?.system?.attributes?.hp?.value ?? null,
-        hitPointsMax: actor?.system?.attributes?.hp?.max ?? null
+        hitPointsMax: actor?.system?.attributes?.hp?.max ?? null,
+        armorClass: actor?.system?.attributes?.ac?.value ?? null,
+        slot: records.indexOf(record) + 1
       };
     }));
     return { moduleId: MODULE_ID, tamer: this.tamer, companions,
