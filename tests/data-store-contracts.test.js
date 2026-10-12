@@ -137,6 +137,45 @@ await test("malformed tree store is not normalized into empty data", () => {
 
 
 
+await test("unlink removes only the relationship and reports failed persistence", async () => {
+  const flags = { "tamer-manager.companions": [
+    { id: "relationship-1", name: "Training Dummy", actorUuid: "Actor.dummy" }
+  ] };
+  let failWrite = false;
+  const actor = {
+    uuid: "Actor.tamer",
+    items: [{ type: "class", name: "Tamer", system: { identifier: "tamer", levels: 3 } }],
+    getFlag: (scope, key) => flags[`${scope}.${key}`],
+    setFlag: async (scope, key, value) => {
+      if (failWrite) { failWrite = false; throw new Error("injected unlink failure"); }
+      flags[`${scope}.${key}`] = structuredClone(value);
+    }
+  };
+  const removedActor = { uuid: "Actor.dummy", deleted: false };
+  failWrite = true;
+  await assertRejects(() => TamerRecords.remove(actor, "relationship-1"),
+    "Failed unlink persistence must be reported.");
+  assert(TamerRecords.read(actor).length === 1, "Failed unlink must preserve the saved relationship.");
+  const removed = await TamerRecords.remove(actor, "relationship-1");
+  assert(removed, "Expected unlink to succeed on retry.");
+  assert(TamerRecords.read(actor).length === 0, "Successful unlink should remove the relationship.");
+  assert(removedActor.deleted === false, "Unlink must not delete the companion Actor.");
+});
+
+await test("missing Actor references remain visible in relationship data", () => {
+  const flags = { "tamer-manager.companions": [
+    { id: "missing-relationship", name: "Lost Companion", actorUuid: "Actor.no-longer-exists" }
+  ] };
+  const actor = {
+    uuid: "Actor.tamer",
+    items: [{ type: "class", name: "Tamer", system: { identifier: "tamer", levels: 3 } }],
+    getFlag: (scope, key) => flags[`${scope}.${key}`]
+  };
+  const records = TamerRecords.read(actor);
+  assert(records.length === 1 && records[0].actorUuid === "Actor.no-longer-exists",
+    "Missing Actor lookup must not erase the relationship reference.");
+});
+
 await test("initialization recovery repairs a failed relationship write without reapplying mechanics", async () => {
   const tamerFlags = {};
   let failRelationshipWrite = true;
