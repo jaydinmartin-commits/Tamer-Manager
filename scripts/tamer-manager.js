@@ -99,9 +99,10 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     return result ? fromUuid(result).catch(() => null) : null;
   }
 
-  static async chooseActor() {
-    const existing = new Set(TamerRecords.read(this.tamer).map(record => record.actorUuid));
-    const candidates = (game.actors?.contents ?? []).filter(actor => actor !== this.tamer && actor.type === "npc" && !existing.has(actor.uuid));
+  static async chooseActor(tamer) {
+    if (!tamer || !TamerRecords.isTamer(tamer)) return null;
+    const existing = new Set(TamerRecords.read(tamer).map(record => record.actorUuid));
+    const candidates = (game.actors?.contents ?? []).filter(actor => actor !== tamer && actor.type === "npc" && !existing.has(actor.uuid));
     if (!candidates.length) {
       ui.notifications.warn("No eligible unregistered Actor documents are available to add.");
       return null;
@@ -124,7 +125,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static async _onAddCompanion() {
     if (!this.tamer) return;
-    const actor = await this.constructor.chooseActor();
+    const actor = await this.constructor.chooseActor(this.tamer);
     if (!actor) return;
 
     const preview = await TamerRecords.previewAdd(this.tamer, actor);
