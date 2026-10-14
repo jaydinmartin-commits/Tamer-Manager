@@ -81,6 +81,17 @@ await test("option validator rejects duplicate IDs and dangling prerequisites", 
   assert(result.errors.some(error => error.includes("missing prerequisite")), "Dangling prerequisites should be reported.");
 });
 
+await test("companion record preserves repeatable improvement rank counts", () => {
+  const normalized = CompanionRecord.normalize({
+    id: "ranked", name: "Ranked Companion", actorUuid: "Actor.ranked",
+    improvements: [{ id: "toughen-up", count: 3 }, { id: "growth", rank: 2 }]
+  });
+  assert(normalized.improvements[0].count === 3, "Explicit repeatable count should survive normalization.");
+  assert(normalized.improvements[1].rank === 2, "Legacy rank representation should survive normalization.");
+  const again = CompanionRecord.normalize(normalized);
+  assert(again.improvements[0].count === 3, "Repeated normalization must preserve repeatable counts.");
+});
+
 await test("option validator enforces repeatability and replacement definitions", () => {
   const invalidRepeat = CompanionOptionValidator.validate([
     option("single", { repeatable: false, maxSelections: 2 })
