@@ -297,55 +297,77 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
     const definitions = CompanionOptions.byType("improvement");
-    const selectedIds = new Set((record.improvements ?? []).map(value =>
-      typeof value === "string" ? value : String(value?.id ?? "")
-    ).filter(Boolean));
+    const savedCounts = new Map();
+    for (const value of record.improvements ?? []) {
+      const id = typeof value === "string" ? value : String(value?.id ?? "");
+      if (!id) continue;
+      const count = typeof value === "string" ? 1 : Math.max(1, Number(value?.count ?? value?.rank ?? 1));
+      savedCounts.set(id, (savedCounts.get(id) ?? 0) + count);
+    }
     const byId = new Map(definitions.map(definition => [definition.id, definition]));
-    const selectedDefinitions = [...selectedIds].map(id => byId.get(id)).filter(Boolean);
-    const replacedIds = new Set(selectedDefinitions.map(definition => definition.replacesId).filter(Boolean));
-    const effectiveSelectedIds = new Set([...selectedIds].filter(id => !replacedIds.has(id)));
-    const selectedCount = effectiveSelectedIds.size;
+    const effectiveSelectedIds = new Set([...savedCounts.keys()]);
+    for (const id of [...effectiveSelectedIds]) {
+      const definition = byId.get(id);
+      if (definition?.replacesId) effectiveSelectedIds.delete(definition.replacesId);
+    }
+    const selectedCount = [...savedCounts.entries()].reduce((sum, [id, count]) => {
+      const definition = byId.get(id);
+      return sum + (definition?.replacesId ? 0 : count);
+    }, 0);
     if (!definitions.length) {
       ui.notifications.warn("No companion improvements have been configured by the GM yet.");
       return;
     }
     const rows = definitions.map(definition => {
-      const isSelected = selectedIds.has(definition.id);
+      const count = savedCounts.get(definition.id) ?? 0;
+      const isSelected = count > 0;
       const prerequisitesMet = (definition.prerequisiteIds ?? []).every(id => effectiveSelectedIds.has(id));
       const levelMet = CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record });
       const replacementMet = !definition.replacesId || effectiveSelectedIds.has(definition.replacesId);
-      const selectedLimitReached = !isSelected && selectedCount >= maximum;
-      const disabled = !isSelected && (!levelMet || !prerequisitesMet || !replacementMet || selectedLimitReached);
+      const remaining = Math.max(0, maximum - selectedCount + (definition.replacesId && effectiveSelectedIds.has(definition.replacesId) ? 1 : 0));
+      const cap = definition.repeatable ? (definition.maxSelections ?? maximum) : 1;
+      const disabled = !isSelected && (!levelMet || !prerequisitesMet || !replacementMet || remaining < 1);
       const description = foundry.utils.escapeHTML(String(definition.metadata?.description ?? ""));
-      return `<label class="tamer-manager__improvement-option"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites")}</small></span></label>`;
+      return `<label class="tamer-manager__improvement-option"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites")}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}" ${!isSelected ? "disabled" : ""}></span>` : ""}</span></label>`;
     }).join("");
     const result = await foundry.applications.api.DialogV2.wait({
       window: { title: `Manage Improvements — ${actor.name}` },
-      content: `<form><p>Choose up to ${maximum} improvements. Options unavailable at the current level or with unmet prerequisites are disabled.</p><div class="tamer-manager__improvement-list">${rows}</div></form>`,
+      content: `<form><p>Choose up to ${maximum} improvement slots. Repeatable improvements can use multiple slots when permitted.</p><div class="tamer-manager__improvement-list">${rows}</div></form>`,
       buttons: [
-        { action: "save", label: "Save", default: true, callback: (event, button) =>
-          Array.from(button.form.querySelectorAll('input[name="improvement"]:checked')).map(input => input.value) },
+        { action: "save", label: "Save", default: true, callback: (event, button) => {
+          const form = button.form;
+          return Array.from(form.querySelectorAll('input[name="improvement"]:checked')).map(input => {
+            const definition = byId.get(input.value);
+            const countInput = form.querySelector(`input[name="count-${CSS.escape(input.value)}"]`);
+            const count = definition?.repeatable ? Math.max(1, Math.min(Number(countInput?.value) || 1, definition.maxSelections ?? maximum)) : 1;
+            return { id: input.value, count };
+          });
+        }},
         { action: "cancel", label: "Cancel" }
       ]
     });
     if (!Array.isArray(result)) return;
-    if (new Set(result).size !== result.length) {
-      ui.notifications.warn("Duplicate improvement selections are not supported by this picker.");
+    const resultCounts = new Map(result.map(value => [value.id, value.count]));
+    const resultIds = new Set(resultCounts.keys());
+    const resultDefinitions = result.map(value => byId.get(value.id));
+    const replacedIds = new Set(resultDefinitions.map(definition => definition?.replacesId).filter(Boolean));
+    const effectiveIds = new Set([...resultIds].filter(id => !replacedIds.has(id)));
+    const effectiveCount = result.reduce((sum, value) => {
+      const definition = byId.get(value.id);
+      return sum + (definition?.replacesId ? 0 : value.count);
+    }, 0);
+    if (effectiveCount > maximum) {
+      ui.notifications.warn(`This companion can have at most ${maximum} effective improvement slots at the Tamer's current level.`);
       return;
     }
-    const resultDefinitions = result.map(id => byId.get(id));
-    const resultReplacedIds = new Set(resultDefinitions.map(definition => definition?.replacesId).filter(Boolean));
-    const effectiveResult = result.filter(id => !resultReplacedIds.has(id));
-    if (effectiveResult.length > maximum) {
-      ui.notifications.warn(`This companion can have at most ${maximum} effective improvements at the Tamer's current level.`);
-      return;
-    }
-    for (const id of result) {
-      const definition = byId.get(id);
+    for (const value of result) {
+      const definition = byId.get(value.id);
       if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record }) ||
-          (definition.prerequisiteIds ?? []).some(prerequisite => !effectiveResult.includes(prerequisite)) ||
-          (definition.replacesId && !effectiveResult.includes(definition.replacesId))) {
-        ui.notifications.warn(`The selection for ${definition?.name ?? id} is no longer valid. No changes were saved.`);
+          (definition.prerequisiteIds ?? []).some(prerequisite => !effectiveIds.has(prerequisite)) ||
+          (definition.replacesId && !effectiveIds.has(definition.replacesId)) ||
+          (!definition.repeatable && value.count !== 1) ||
+          value.count > (definition.maxSelections ?? maximum)) {
+        ui.notifications.warn(`The selection for ${definition?.name ?? value.id} is no longer valid. No changes were saved.`);
         return;
       }
     }
