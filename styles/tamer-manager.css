@@ -334,3 +334,203 @@
 
 .tamer-manager__rank-control { display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.3rem; font-size: 0.75rem; }
 .tamer-manager__rank-control input { width: 4.5rem; }
+
+
+/* Professional interface pass: retain the existing card structure and Foundry theme. */
+.tamer-manager {
+  --tm-surface: var(--color-bg-option, rgba(255, 255, 255, 0.035));
+  --tm-border: var(--color-border-light-primary, rgba(255, 255, 255, 0.18));
+  --tm-muted: var(--color-text-secondary, #a8a8a8);
+  --tm-accent: var(--color-warm-2, #c5a46d);
+  color: var(--color-text-primary);
+}
+.tamer-manager .tamer-manager__header {
+  align-items: center;
+  padding: 0.9rem 1rem;
+  background: linear-gradient(120deg, var(--tm-surface), transparent 75%);
+}
+.tamer-manager .tamer-manager__header h2 {
+  font-size: 1.2rem;
+  font-weight: 750;
+  letter-spacing: 0.015em;
+}
+.tamer-manager .tamer-manager__tamer {
+  color: var(--tm-muted);
+  font-size: 0.82rem;
+}
+.tamer-manager .tamer-manager__capacity {
+  text-transform: uppercase;
+  color: var(--tm-muted);
+}
+.tamer-manager .tamer-manager__capacity strong {
+  color: var(--tm-accent);
+  font-variant-numeric: tabular-nums;
+}
+.tamer-manager .tamer-manager__actions {
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.tamer-manager .tamer-manager__actions button,
+.tamer-manager .tamer-manager__vessel-actions button,
+.tamer-manager .tamer-manager__improvements > button {
+  border: 1px solid var(--tm-border);
+  border-radius: 0.3rem;
+  transition: border-color 120ms ease, background-color 120ms ease, transform 120ms ease;
+}
+.tamer-manager .tamer-manager__actions button:hover,
+.tamer-manager .tamer-manager__vessel-actions button:hover,
+.tamer-manager .tamer-manager__improvements > button:hover {
+  border-color: var(--tm-accent);
+  background: color-mix(in srgb, var(--tm-accent) 12%, transparent);
+}
+.tamer-manager .tamer-manager__body {
+  padding: 0.85rem;
+  scrollbar-gutter: stable;
+}
+.tamer-manager .tamer-manager__companions {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  align-items: start;
+  gap: 0.75rem;
+}
+.tamer-manager .tamer-manager__card {
+  position: relative;
+  align-items: stretch;
+  gap: 0.8rem;
+  padding: 0.8rem;
+  border-color: color-mix(in srgb, var(--tm-border) 82%, transparent);
+  border-radius: 0.45rem;
+  background: var(--tm-surface);
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.12);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.tamer-manager .tamer-manager__card:hover {
+  border-color: color-mix(in srgb, var(--tm-accent) 62%, var(--tm-border));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+.tamer-manager .tamer-manager__card.is-missing {
+  border-style: dashed;
+}
+.tamer-manager .tamer-manager__portrait-wrap {
+  flex: 0 0 4.25rem;
+  width: 4.25rem;
+}
+.tamer-manager .tamer-manager__portrait {
+  width: 4.25rem;
+  height: 4.25rem;
+  object-fit: cover;
+  border: 1px solid var(--tm-border);
+  border-radius: 0.35rem;
+  background: var(--tm-surface);
+}
+.tamer-manager .tamer-manager__details {
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 0.55rem;
+}
+.tamer-manager .tamer-manager__card-header {
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--tm-border);
+}
+.tamer-manager .tamer-manager__identity strong {
+  font-size: 0.96rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.tamer-manager .tamer-manager__identity span {
+  color: var(--tm-muted);
+  font-size: 0.72rem;
+}
+.tamer-manager .tamer-manager__slot {
+  flex: 0 0 auto;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--tm-border);
+  border-radius: 999px;
+  color: var(--tm-muted);
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.07em;
+}
+.tamer-manager .tamer-manager__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+.tamer-manager .tamer-manager__stats > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--tm-border);
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, var(--tm-surface) 80%, transparent);
+}
+.tamer-manager .tamer-manager__stat-label {
+  color: var(--tm-muted);
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.055em;
+}
+.tamer-manager .tamer-manager__stats strong,
+.tamer-manager .tamer-manager__status strong {
+  font-variant-numeric: tabular-nums;
+}
+.tamer-manager .tamer-manager__status {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+}
+.tamer-manager .tamer-manager__status .tamer-manager__stat-label {
+  flex-basis: 100%;
+}
+.tamer-manager .tamer-manager__improvements {
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--tm-border);
+}
+.tamer-manager .tamer-manager__improvements > button {
+  min-height: 1.8rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+}
+.tamer-manager .tamer-manager__vessel-actions button {
+  min-height: 1.7rem;
+}
+.tamer-manager__improvement-list {
+  padding: 0.35rem 0.15rem;
+}
+.tamer-manager__improvement-option {
+  border-color: var(--tm-border);
+  border-radius: 0.35rem;
+  background: var(--tm-surface);
+}
+.tamer-manager__improvement-option:has(input:checked) {
+  border-color: color-mix(in srgb, var(--tm-accent) 70%, var(--tm-border));
+  background: color-mix(in srgb, var(--tm-accent) 8%, var(--tm-surface));
+}
+.tamer-manager__rank-control input {
+  min-height: 1.65rem;
+}
+@media (max-width: 520px) {
+  .tamer-manager .tamer-manager__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .tamer-manager .tamer-manager__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .tamer-manager .tamer-manager__card {
+    gap: 0.55rem;
+    padding: 0.6rem;
+  }
+  .tamer-manager .tamer-manager__portrait-wrap,
+  .tamer-manager .tamer-manager__portrait {
+    flex-basis: 3.25rem;
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+}
