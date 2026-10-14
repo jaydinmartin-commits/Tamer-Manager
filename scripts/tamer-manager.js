@@ -328,7 +328,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const cap = definition.repeatable ? (definition.maxSelections ?? maximum) : 1;
       const disabled = !isSelected && (!levelMet || !prerequisitesMet || !replacementMet || remaining < 1);
       const description = foundry.utils.escapeHTML(String(definition.metadata?.description ?? ""));
-      return `<label class="tamer-manager__improvement-option"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites")}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}" ${!isSelected ? "disabled" : ""}></span>` : ""}</span></label>`;
+      return `<label class="tamer-manager__improvement-option"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites")}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
     }).join("");
     const result = await foundry.applications.api.DialogV2.wait({
       window: { title: `Manage Improvements — ${actor.name}` },
@@ -351,7 +351,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     const resultIds = new Set(resultCounts.keys());
     const resultDefinitions = result.map(value => byId.get(value.id));
     const replacedIds = new Set(resultDefinitions.map(definition => definition?.replacesId).filter(Boolean));
-    const effectiveIds = new Set([...resultIds].filter(id => !replacedIds.has(id)));
+    const effectiveIds = new Set([...resultIds].filter(id => !resultDefinitions.some(definition => definition?.replacesId === id)));
     const effectiveCount = result.reduce((sum, value) => {
       const definition = byId.get(value.id);
       return sum + (definition?.replacesId ? 0 : value.count);
@@ -364,7 +364,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const definition = byId.get(value.id);
       if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record }) ||
           (definition.prerequisiteIds ?? []).some(prerequisite => !effectiveIds.has(prerequisite)) ||
-          (definition.replacesId && !effectiveIds.has(definition.replacesId)) ||
+          (definition.replacesId && !resultIds.has(definition.replacesId)) ||
           (!definition.repeatable && value.count !== 1) ||
           value.count > (definition.maxSelections ?? maximum)) {
         ui.notifications.warn(`The selection for ${definition?.name ?? value.id} is no longer valid. No changes were saved.`);
