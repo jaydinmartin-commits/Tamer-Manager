@@ -329,8 +329,9 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         ? (Number(byId.get(definition.replacesId)?.slotCost) || 0) * (savedCounts.get(definition.replacesId) ?? 1)
         : 0;
       const remaining = Math.max(0, maximum - selectedCount + replacedCost);
+      const requiredSlots = Math.max(0, Number(definition.slotCost) || 0);
       const cap = definition.repeatable ? (definition.maxSelections ?? maximum) : 1;
-      const disabled = !isSelected && (!levelMet || !prerequisitesMet || !replacementMet || remaining < 1);
+      const disabled = !isSelected && (!levelMet || !prerequisitesMet || !replacementMet || remaining < requiredSlots);
       const description = foundry.utils.escapeHTML(String(definition.metadata?.description ?? ""));
       return `<label class="tamer-manager__improvement-option"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites")}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
     }).join("");
