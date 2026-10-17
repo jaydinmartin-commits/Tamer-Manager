@@ -21,3 +21,13 @@ export function selectedImprovementSlotCost(record, definitions) {
     return replacedBySelectedUpgrade ? total : total + Math.max(0, Number(definition.slotCost) || 0) * count;
   }, 0);
 }
+
+/**
+ * Returns the additional slots an improvement needs after crediting the
+ * configured cost of the improvement it replaces.
+ */
+export function additionalImprovementSlotCost(requiredSlots, replacedSlots = 0) {
+  const required = Math.max(0, Number(requiredSlots) || 0);
+  const credit = Math.max(0, Number(replacedSlots) || 0);
+  return Math.max(0, required - credit);
+}
