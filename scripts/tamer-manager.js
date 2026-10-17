@@ -332,11 +332,11 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!definition || [...savedCounts.keys()].some(selectedId => byId.get(selectedId)?.replacesId === id)) return sum;
       return sum + (Number(definition.slotCost) || 0) * count;
     }, 0);
-    if (!definitions.length) {
+    const unknownLegacySelections = [...savedCounts.entries()].filter(([id]) => !byId.has(id));
+    if (!definitions.length && !unknownLegacySelections.length) {
       ui.notifications.warn("No companion improvements have been configured by the GM yet.");
       return;
     }
-    const unknownLegacySelections = [...savedCounts.entries()].filter(([id]) => !byId.has(id));
     const rows = definitions.map(definition => {
       const count = savedCounts.get(definition.id) ?? 0;
       const isSelected = count > 0;
