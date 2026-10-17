@@ -69,6 +69,10 @@ await test("improvement slot accounting honors costs, repeatable ranks, and repl
     "A corrupt non-finite saved rank must not make the total NaN.");
   assert(selectedImprovementSlotCost({ improvements: [{ id: "toughen-up", count: 2.8 }] }, definitions) === 2,
     "Fractional persisted ranks must be normalized to whole ranks.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "growth-ii", count: 1 }, { id: "growth-i", count: 1 }, { id: "toughen-up", count: 1 }] }, definitions) === 3,
+    "Replacing a lower-tier improvement must not discount unrelated selected improvements.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "free-choice", count: 3 }] }, [option("free-choice", { slotCost: 0, repeatable: true, maxSelections: 4 })]) === 0,
+    "A valid zero-slot improvement must not consume slots.");
 });
 
 await test("companion record round-trip preserves vessel, summon, improvement, and splicer state", () => {
