@@ -304,7 +304,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const value of record.improvements ?? []) {
       const id = typeof value === "string" ? value : String(value?.id ?? "");
       if (!id) continue;
-      const count = typeof value === "string" ? 1 : Math.max(1, Number(value?.count ?? value?.rank ?? 1));
+      const rawCount = typeof value === "string" ? 1 : Number(value?.count ?? value?.rank ?? 1);
+      const count = Number.isFinite(rawCount) && rawCount >= 1 ? Math.floor(rawCount) : 1;
       savedCounts.set(id, (savedCounts.get(id) ?? 0) + count);
     }
     const byId = new Map(definitions.map(definition => [definition.id, definition]));
