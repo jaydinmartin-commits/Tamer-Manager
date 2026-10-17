@@ -4,7 +4,7 @@ import { CompanionTreeStore } from "../scripts/data/companion-tree-store.js";
 import { TamerRecords } from "../scripts/data/tamer-records.js";
 import { CompanionRecord } from "../scripts/data/companion-record.js";
 import { CompanionInitializationApplication } from "../scripts/data/companion-initialization-application.js";
-import { selectedImprovementSlotCost } from "../scripts/data/companion-improvement-cost.js";
+import { selectedImprovementSlotCost, additionalImprovementSlotCost } from "../scripts/data/companion-improvement-cost.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
 
@@ -73,6 +73,12 @@ await test("improvement slot accounting honors costs, repeatable ranks, and repl
     "Replacing a lower-tier improvement must not discount unrelated selected improvements.");
   assert(selectedImprovementSlotCost({ improvements: [{ id: "free-choice", count: 3 }] }, [option("free-choice", { slotCost: 0, repeatable: true, maxSelections: 4 })]) === 0,
     "A valid zero-slot improvement must not consume slots.");
+  assert(additionalImprovementSlotCost(2, 1) === 1,
+    "An upgrade should consume only the difference between its cost and the replaced improvement.");
+  assert(additionalImprovementSlotCost(1, 2) === 0,
+    "Replacing an improvement with a higher-cost predecessor should not create negative slot usage.");
+  assert(additionalImprovementSlotCost(2, 0) === 2,
+    "An improvement without a replacement should consume its full configured cost.");
 });
 
 await test("companion record round-trip preserves vessel, summon, improvement, and splicer state", () => {
