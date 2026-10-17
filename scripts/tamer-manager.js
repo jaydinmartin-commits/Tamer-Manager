@@ -2,7 +2,7 @@ const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
-import { selectedImprovementSlotCost } from "./data/companion-improvement-cost.js";
+import { selectedImprovementSlotCost, additionalImprovementSlotCost } from "./data/companion-improvement-cost.js";
 
 const MODULE_ID = "tamer-manager";
 
@@ -329,8 +329,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const replacedCost = definition.replacesId && effectiveSelectedIds.has(definition.replacesId)
         ? (Number(byId.get(definition.replacesId)?.slotCost) || 0) * (savedCounts.get(definition.replacesId) ?? 1)
         : 0;
-      const remaining = Math.max(0, maximum - selectedCount + replacedCost);
-      const requiredSlots = Math.max(0, Number(definition.slotCost) || 0);
+      const remaining = Math.max(0, maximum - selectedCount);
+      const requiredSlots = additionalImprovementSlotCost(definition.slotCost, replacedCost);
       const cap = definition.repeatable ? (definition.maxSelections ?? maximum) : 1;
       const disabled = !isSelected && (!levelMet || !prerequisitesMet || !replacementMet || remaining < requiredSlots);
       const description = foundry.utils.escapeHTML(String(definition.metadata?.description ?? ""));
