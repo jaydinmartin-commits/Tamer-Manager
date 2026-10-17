@@ -2,25 +2,11 @@ const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
+import { selectedImprovementSlotCost } from "./data/companion-improvement-cost.js";
 
 const MODULE_ID = "tamer-manager";
 
-function selectedImprovementSlotCost(record, definitions) {
-  const byId = new Map(definitions.map(definition => [definition.id, definition]));
-  const counts = new Map();
-  for (const selection of record?.improvements ?? []) {
-    const id = typeof selection === "string" ? selection : String(selection?.id ?? "");
-    if (!id) continue;
-    const count = typeof selection === "string" ? 1 : Math.max(1, Number(selection?.count ?? selection?.rank ?? 1));
-    counts.set(id, (counts.get(id) ?? 0) + count);
-  }
-  return [...counts.entries()].reduce((total, [id, count]) => {
-    const definition = byId.get(id);
-    if (!definition) return total;
-    const replacedBySelectedUpgrade = [...counts.keys()].some(selectedId => byId.get(selectedId)?.replacesId === id);
-    return replacedBySelectedUpgrade ? total : total + Math.max(0, Number(definition.slotCost) || 0) * count;
-  }, 0);
-}
+
 const ADD_REASONS = {
   "missing-tamer-or-companion": "A Tamer and companion Actor are required.",
   "missing-companion-uuid": "The selected Actor cannot be referenced as a companion.",
