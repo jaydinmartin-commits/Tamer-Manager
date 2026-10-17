@@ -4,6 +4,7 @@ import { CompanionTreeStore } from "../scripts/data/companion-tree-store.js";
 import { TamerRecords } from "../scripts/data/tamer-records.js";
 import { CompanionRecord } from "../scripts/data/companion-record.js";
 import { CompanionInitializationApplication } from "../scripts/data/companion-initialization-application.js";
+import { selectedImprovementSlotCost, additionalImprovementSlotCost } from "../scripts/data/companion-improvement-cost.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
 
@@ -48,6 +49,36 @@ const option = (id, extra = {}) => ({
   requirements: { tamerLevel: 1, companionIdentifiers: [] },
   repeatable: false, maxSelections: null, slotCost: 1, pointCost: 0,
   prerequisiteIds: [], replacesId: null, treeId: null, metadata: {}, ...extra
+});
+
+await test("improvement slot accounting honors costs, repeatable ranks, and replacements", () => {
+  const definitions = [
+    option("growth-i", { slotCost: 1 }),
+    option("growth-ii", { slotCost: 2, replacesId: "growth-i" }),
+    option("toughen-up", { slotCost: 1, repeatable: true, maxSelections: 4 })
+  ];
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "growth-ii", count: 1 }, { id: "growth-i", count: 1 }] }, definitions) === 2,
+    "An upgrade should replace the lower-tier cost instead of stacking both.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "toughen-up", count: 3 }] }, definitions) === 3,
+    "Repeatable rank count should multiply the configured slot cost.");
+  assert(selectedImprovementSlotCost({ improvements: ["growth-i", { id: "toughen-up", rank: 2 }] }, definitions) === 3,
+    "Legacy string selections and rank-form repeatable counts should be accounted for.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "removed-definition", count: 2 }] }, definitions) === 0,
+    "Unknown legacy definitions must not have a guessed slot cost.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "toughen-up", count: Number.NaN }] }, definitions) === 1,
+    "A corrupt non-finite saved rank must not make the total NaN.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "toughen-up", count: 2.8 }] }, definitions) === 2,
+    "Fractional persisted ranks must be normalized to whole ranks.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "growth-ii", count: 1 }, { id: "growth-i", count: 1 }, { id: "toughen-up", count: 1 }] }, definitions) === 3,
+    "Replacing a lower-tier improvement must not discount unrelated selected improvements.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "free-choice", count: 3 }] }, [option("free-choice", { slotCost: 0, repeatable: true, maxSelections: 4 })]) === 0,
+    "A valid zero-slot improvement must not consume slots.");
+  assert(additionalImprovementSlotCost(2, 1) === 1,
+    "An upgrade should consume only the difference between its cost and the replaced improvement.");
+  assert(additionalImprovementSlotCost(1, 2) === 0,
+    "Replacing an improvement with a higher-cost predecessor should not create negative slot usage.");
+  assert(additionalImprovementSlotCost(2, 0) === 2,
+    "An improvement without a replacement should consume its full configured cost.");
 });
 
 await test("companion record round-trip preserves vessel, summon, improvement, and splicer state", () => {
