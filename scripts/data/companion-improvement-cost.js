@@ -9,7 +9,9 @@ export function selectedImprovementSlotCost(record, definitions) {
   for (const selection of record?.improvements ?? []) {
     const id = typeof selection === "string" ? selection : String(selection?.id ?? "");
     if (!id) continue;
-    const count = typeof selection === "string" ? 1 : Math.max(1, Number(selection?.count ?? selection?.rank ?? 1));
+    const rawCount = typeof selection === "string" ? 1 : Number(selection?.count ?? selection?.rank ?? 1);
+    // Corrupt persisted counts must never turn the total into NaN and bypass the allowance check.
+    const count = Number.isFinite(rawCount) && rawCount >= 1 ? Math.floor(rawCount) : 1;
     counts.set(id, (counts.get(id) ?? 0) + count);
   }
   return [...counts.entries()].reduce((total, [id, count]) => {
