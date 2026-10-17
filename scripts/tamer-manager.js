@@ -313,11 +313,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const definition = byId.get(id);
       if (definition?.replacesId) effectiveSelectedIds.delete(definition.replacesId);
     }
-    const selectedCount = [...savedCounts.entries()].reduce((sum, [id, count]) => {
-      const definition = byId.get(id);
-      if (!definition || [...savedCounts.keys()].some(selectedId => byId.get(selectedId)?.replacesId === id)) return sum;
-      return sum + (Number(definition.slotCost) || 0) * count;
-    }, 0);
+    const selectedCount = selectedImprovementSlotCost(record, definitions);
     const unknownLegacySelections = [...savedCounts.entries()].filter(([id]) => !byId.has(id));
     if (!definitions.length && !unknownLegacySelections.length) {
       ui.notifications.warn("No companion improvements have been configured by the GM yet.");
@@ -368,11 +364,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     const resultDefinitions = result.map(value => byId.get(value.id));
     const replacedIds = new Set(resultDefinitions.map(definition => definition?.replacesId).filter(Boolean));
     const effectiveIds = new Set([...resultIds].filter(id => !resultDefinitions.some(definition => definition?.replacesId === id)));
-    const effectiveCount = result.reduce((sum, value) => {
-      const definition = byId.get(value.id);
-      if (!definition || resultDefinitions.some(candidate => candidate?.replacesId === value.id)) return sum;
-      return sum + (Number(definition.slotCost) || 0) * value.count;
-    }, 0);
+    const effectiveCount = selectedImprovementSlotCost({ improvements: result }, definitions);
     if (effectiveCount > maximum) {
       ui.notifications.warn(`This companion can have at most ${maximum} effective improvement slots at the Tamer's current level.`);
       return;
