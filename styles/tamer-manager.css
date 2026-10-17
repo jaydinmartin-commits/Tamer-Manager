@@ -534,3 +534,26 @@
     height: 3.25rem;
   }
 }
+
+
+/* Improvement editor: make preserved legacy entries explicit without changing card styling. */
+.tamer-manager__improvement-list .tamer-manager__legacy-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-level-warning, #a77b35);
+  border-inline-start-width: 3px;
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, var(--color-level-warning, #a77b35) 10%, transparent);
+  line-height: 1.4;
+}
+.tamer-manager__improvement-list .tamer-manager__improvement-option.is-legacy {
+  opacity: 0.82;
+  border-style: dashed;
+  background: var(--color-cool-5, rgba(128, 128, 128, 0.06));
+}
+.tamer-manager__improvement-list .tamer-manager__improvement-option.is-legacy input {
+  accent-color: var(--color-level-warning, #a77b35);
+}
