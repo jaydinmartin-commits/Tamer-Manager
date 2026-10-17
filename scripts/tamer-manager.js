@@ -362,6 +362,13 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!Array.isArray(result)) return;
     const resultCounts = new Map(result.map(value => [value.id, value.count]));
     const resultIds = new Set(resultCounts.keys());
+    if (unknownLegacySelections.length) {
+      const newlyAddedKnownSelection = result.some(value => byId.has(value.id) && !savedCounts.has(value.id));
+      if (newlyAddedKnownSelection) {
+        ui.notifications.warn("Restore the missing improvement definitions before adding new improvements. Existing saved selections were not changed.");
+        return;
+      }
+    }
     const resultDefinitions = result.map(value => byId.get(value.id));
     const replacedIds = new Set(resultDefinitions.map(definition => definition?.replacesId).filter(Boolean));
     const effectiveIds = new Set([...resultIds].filter(id => !resultDefinitions.some(definition => definition?.replacesId === id)));
