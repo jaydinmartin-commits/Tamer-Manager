@@ -65,6 +65,10 @@ await test("improvement slot accounting honors costs, repeatable ranks, and repl
     "Legacy string selections and rank-form repeatable counts should be accounted for.");
   assert(selectedImprovementSlotCost({ improvements: [{ id: "removed-definition", count: 2 }] }, definitions) === 0,
     "Unknown legacy definitions must not have a guessed slot cost.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "toughen-up", count: Number.NaN }] }, definitions) === 1,
+    "A corrupt non-finite saved rank must not make the total NaN.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "toughen-up", count: 2.8 }] }, definitions) === 2,
+    "Fractional persisted ranks must be normalized to whole ranks.");
 });
 
 await test("companion record round-trip preserves vessel, summon, improvement, and splicer state", () => {
