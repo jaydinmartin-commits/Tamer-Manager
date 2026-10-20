@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { CompanionOptionStore } from "../scripts/data/companion-option-store.js";
 import { CompanionOptionValidator } from "../scripts/data/companion-option-validator.js";
 import { CompanionTreeStore } from "../scripts/data/companion-tree-store.js";
@@ -366,6 +367,26 @@ await test("initialization recovery repairs a failed relationship write without 
     if (oldRoll === undefined) delete globalThis.Roll; else globalThis.Roll = oldRoll;
     if (oldRandomID === undefined) delete globalThis.foundry.utils.randomID; else globalThis.foundry.utils.randomID = oldRandomID;
   }
+});
+
+await test("native companion picker limits displayed source packs and restores global browser methods", () => {
+  const source = readFileSync(new URL("../scripts/tamer-manager.js", import.meta.url), "utf8");
+  assert(source.includes("CompendiumBrowser.selectOne({"),
+    "Add Companion must use the native D&D 5e Compendium Browser.");
+  assert(source.includes("CompendiumBrowser.fetch = async function(documentClass, options = {})"),
+    "The native browser fetch wrapper must be asynchronous.");
+  assert(source.includes("await originalFetch.call(this, documentClass, options)"),
+    "The allowlist must remain active while the browser asynchronously indexes results.");
+  assert(source.includes("CompendiumBrowserSettingsConfig.collateSources = function()"),
+    "The allowlist must filter source collation before Actor pack indexing.");
+  assert(source.includes("return new Set([...itemSources, ...allowedCollections])"),
+    "The configured Actor allowlist must be combined with normal non-Actor browser sources.");
+  assert(source.includes("CompendiumBrowserSettingsConfig.collateSources = originalCollateSources"),
+    "The original source-collation method must be restored after indexing.");
+  assert(source.includes("CompendiumBrowser.fetch = originalFetch"),
+    "The original browser fetch method must be restored after selection or cancellation.");
+  assert(source.includes('uuid.startsWith(`Compendium.${name}.`)'),
+    "The selected Actor UUID must still be checked against the configured collections.");
 });
 
 const failed = results.filter(result => !result.passed);
