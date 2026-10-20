@@ -203,8 +203,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     let CompendiumBrowser;
     let CompendiumBrowserSettingsConfig;
     try {
-      ({ default: CompendiumBrowser } = await import("systems/dnd5e/module/applications/compendium-browser.mjs"));
-      ({ default: CompendiumBrowserSettingsConfig } = await import("systems/dnd5e/module/applications/settings/compendium-browser-settings.mjs"));
+      ({ default: CompendiumBrowser } = await import("/systems/dnd5e/module/applications/compendium-browser.mjs"));
+      ({ default: CompendiumBrowserSettingsConfig } = await import("/systems/dnd5e/module/applications/settings/compendium-browser-settings.mjs"));
     } catch (error) {
       console.error("Tamer Manager | Could not load the D&D 5e Compendium Browser for Add Companion.", error);
       ui.notifications.error("Tamer Manager loaded, but the D&D 5e Compendium Browser could not be loaded. Confirm D&D 5e v6 is active and fully initialized.");
