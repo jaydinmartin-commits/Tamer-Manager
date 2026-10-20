@@ -382,7 +382,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!definition && unknownLegacySelections.some(([id]) => id === value.id)) continue;
       if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record }) ||
           (definition.prerequisiteIds ?? []).some(prerequisite => !effectiveIds.has(prerequisite)) ||
-          (definition.replacesId && !resultIds.has(definition.replacesId)) ||
+          (definition.replacesId && !resultIds.has(definition.replacesId) && !savedCounts.has(value.id)) ||
           (!definition.repeatable && value.count !== 1) ||
           value.count > (definition.maxSelections ?? maximum) ||
           !Number.isInteger(Number(definition.slotCost)) || Number(definition.slotCost) < 0) {
