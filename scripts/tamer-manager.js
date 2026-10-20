@@ -70,6 +70,20 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
        String(item.system?.identifier ?? "").trim().toLowerCase() === "tamer")
     );
     const tamerLevel = Number(tamerClass?.system?.levels) || 0;
+    const resourceFor = names => {
+      const item = this.tamer?.items?.find(candidate => {
+        const name = String(candidate.name ?? "").trim().toLowerCase();
+        const identifier = String(candidate.system?.identifier ?? "").trim().toLowerCase();
+        return names.includes(name) || names.includes(identifier);
+      });
+      const uses = item?.system?.uses;
+      if (!item || !uses || uses.max == null) return null;
+      return { name: item.name, value: uses.value ?? 0, max: uses.max };
+    };
+    const resources = [
+      resourceFor(["soul bond", "soul-bond"]),
+      resourceFor(["splicer", "splicer points", "splicer-points"])
+    ].filter(Boolean);
     let progression = null;
     try { if (tamerLevel >= 1 && tamerLevel <= 20) progression = TamerCompanionSummary.forLevel(tamerLevel); }
     catch { progression = null; }
@@ -112,6 +126,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         availableImprovements: actor && tamerLevel >= 1 ? (() => { try { return TamerCompanionSummary.trainingFor(tamerLevel, actor.system?.details?.cr ?? actor.system?.details?.challenge).improvements; } catch { return null; } })() : null,
         vesselName: record.vesselName || (record.vesselUuid ? "Assigned vessel" : "No vessel assigned"),
         isSummoned: record.status === "summoned",
+        isSummonedBespoke: record.status === "summoned" && CompanionOptions.byType("improvement", { companion: actor }).some(option => Boolean(option.treeId)),
         statusLabel: record.status === "summoned" ? "Summoned" : (record.vesselUuid || record.vesselName ? "Stored in vessel" : "In vessel (unassigned)"),
         actorExists: Boolean(actor),
         actorUuid: record.actorUuid ?? "",
@@ -127,7 +142,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         slot: index + 1
       };
     }));
-    return { moduleId: MODULE_ID, tamer: this.tamer, companions,
+    return { moduleId: MODULE_ID, tamer: this.tamer, companions, resources, hasResources: resources.length > 0,
       tamerLevel, companionCount: records.length,
       maxCompanions: progression?.maxCompanions ?? null,
       hasTamer: Boolean(this.tamer), canManage: Boolean(this.tamer && TamerRecords.isTamer(this.tamer)) };
@@ -217,7 +232,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static async _onAddCompanion() {
     if (!this.tamer) return;
-    const actor = await this.constructor.chooseActor(this.tamer);
+    const actor = await TamerManager.chooseActor(this.tamer);
     if (!actor) return;
 
     const preview = await TamerRecords.previewAdd(this.tamer, actor);
