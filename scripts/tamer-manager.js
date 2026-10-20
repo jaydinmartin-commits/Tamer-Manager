@@ -375,7 +375,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       ui.notifications.warn("No companion improvements have been configured by the GM yet.");
       return;
     }
-    const rows = definitions.map(definition => {
+    const rows = await Promise.all(definitions.map(async definition => {
       const count = savedCounts.get(definition.id) ?? 0;
       const isSelected = count > 0;
       const prerequisitesMet = (definition.prerequisiteIds ?? []).every(id => effectiveSelectedIds.has(id));
@@ -399,11 +399,13 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
                 ? `Needs ${requiredSlots} additional slot(s); ${remaining} available`
                 : "")
         : "";
-      const description = String(definition.metadata?.description ?? "");
+      const sourceItem = definition.sourceUuid ? await fromUuid(definition.sourceUuid).catch(() => null) : null;
+      const rawDescription = String(definition.metadata?.description ?? sourceItem?.system?.description?.value ?? "");
+      const description = rawDescription.replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim();
       const escapedDescription = foundry.utils.escapeHTML(description);
-      const detail = disabled ? foundry.utils.escapeHTML(disabledReason) : (description ? foundry.utils.escapeHTML(description.replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim()) : (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites"));
+      const detail = disabled ? foundry.utils.escapeHTML(disabledReason) : (description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites"));
       return `<label class="tamer-manager__improvement-option" data-tooltip="${escapedDescription}" data-tooltip-direction="RIGHT" title="${escapedDescription}"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${detail}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
-    }).join("");
+    }));
     const legacyRows = unknownLegacySelections.map(([id, count]) =>
       `<label class="tamer-manager__improvement-option is-legacy"><input type="checkbox" checked disabled><span><strong>${foundry.utils.escapeHTML(id)}</strong><small>Previously saved selection (${count} rank${count === 1 ? "" : "s"}). Its definition is not currently configured; this selection will be preserved.</small></span></label>`
     ).join("");
@@ -412,7 +414,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       : "";
     const result = await foundry.applications.api.DialogV2.wait({
       window: { title: `Manage Improvements — ${actor.name}` },
-      content: `<form><p>Choose up to ${maximum} improvement slots. Repeatable improvements can use multiple slots when permitted.</p>${legacyNotice}<div class="tamer-manager__improvement-list">${legacyRows}${rows}</div></form>`,
+      content: `<form><p>Choose up to ${maximum} improvement slots. Repeatable improvements can use multiple slots when permitted.</p>${legacyNotice}<div class="tamer-manager__improvement-list">${legacyRows}${rows.join("")}</div></form>`,
       buttons: [
         { action: "save", label: "Save", default: true, callback: (event, button) => {
           const form = button.form;
