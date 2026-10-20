@@ -7,6 +7,7 @@ import { CompanionInitializationApplication } from "../scripts/data/companion-in
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "../scripts/data/companion-improvement-cost.js";
 import { selectedImprovementDisplay } from "../scripts/data/companion-improvement-display.js";
 import { CompanionOptionDefinition } from "../scripts/data/companion-option-definition.js";
+import { CompanionOptions } from "../scripts/data/companion-options.js";
 import { reconcileGrowthHitDie, syncImprovementSheetItems } from "../scripts/data/companion-improvement-sheet-sync.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
@@ -431,4 +432,27 @@ await test("known but ineligible bespoke improvements are not retained on the co
   const result = await syncImprovementSheetItems(actor, [{ id: "growth-i", count: 1 }], [], globalDefinitions);
   assert(deleted.includes("managed-growth"), "A known improvement that is no longer eligible must be removed from module-managed sheet display.");
   assert(result.warnings.length === 0, "A known but ineligible improvement should not be misreported as a missing legacy definition.");
+});
+
+await test("bespoke tree eligibility requires the configured companion identifier to match", () => {
+  settings.set("tamer-manager.companionTrees", {
+    schemaVersion: 1,
+    trees: [{ id: "blue-beetle-tree", name: "Blue Beetle", description: "", companionIdentifier: "khaji-da" }]
+  });
+  settings.set("tamer-manager.companionOptions", {
+    schemaVersion: 1,
+    definitions: [
+      option("toughen-up", { name: "Toughen Up", treeId: null }),
+      option("growth-i", { name: "Growth I", treeId: "blue-beetle-tree" }),
+      option("growth-ii", { name: "Growth II", treeId: "blue-beetle-tree", requirements: { tamerLevel: 1, companionIdentifiers: ["different-companion"] } })
+    ]
+  });
+  const khajiDa = { system: { identifier: "khaji-da" } };
+  const otherCompanion = { system: { identifier: "other-companion" } };
+  const forKhajiDa = CompanionOptions.byType("improvement", { companion: khajiDa }).map(item => item.id);
+  const forOther = CompanionOptions.byType("improvement", { companion: otherCompanion }).map(item => item.id);
+  assert(forKhajiDa.includes("growth-i"), "A matching bespoke companion should receive its configured tree improvements.");
+  assert(!forKhajiDa.includes("growth-ii"), "An option-level companion restriction should further narrow the tree's eligibility.");
+  assert(!forOther.includes("growth-i") && !forOther.includes("growth-ii"), "A mismatched bespoke companion must not receive another tree's improvements.");
+  assert(forOther.includes("toughen-up"), "Universal improvements remain available when the bespoke tree does not match.");
 });

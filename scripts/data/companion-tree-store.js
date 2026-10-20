@@ -43,7 +43,7 @@ function migrate(value, definitions) {
     if (!tree || typeof tree !== "object" || Array.isArray(tree) || !tree.id) {
       throw new Error(`Stored companion tree at index ${index} is malformed; data was preserved.`);
     }
-    return { ...clone(tree), id: String(tree.id), name: String(tree.name ?? ""), description: String(tree.description ?? "") };
+    return { ...clone(tree), id: String(tree.id), name: String(tree.name ?? ""), description: String(tree.description ?? ""), companionIdentifier: String(tree.companionIdentifier ?? "").trim() };
   });
   // Read existing trees even if an option has a stale treeId. The GM must be able
   // to open configuration and either recreate the missing tree or repair the option.

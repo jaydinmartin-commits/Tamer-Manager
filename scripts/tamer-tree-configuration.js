@@ -37,7 +37,7 @@ export class TamerTreeConfiguration extends HandlebarsApplicationMixin(Applicati
       trees,
       hasTrees: trees.length > 0,
       editingId: this.editingId,
-      draft: tree ? { ...tree } : { id: "", name: "", description: "" }
+      draft: tree ? { ...tree, companionIdentifier: tree.companionIdentifier ?? "" } : { id: "", name: "", description: "", companionIdentifier: "" }
     };
   }
 
@@ -74,6 +74,7 @@ export class TamerTreeConfiguration extends HandlebarsApplicationMixin(Applicati
       const id = String(data.get("id") ?? "").trim();
       const name = String(data.get("name") ?? "").trim();
       const description = String(data.get("description") ?? "").trim();
+      const companionIdentifier = String(data.get("companionIdentifier") ?? "").trim();
       if (!id || !name) {
         ui.notifications.warn("A tree ID and name are required.");
         return;
@@ -82,7 +83,7 @@ export class TamerTreeConfiguration extends HandlebarsApplicationMixin(Applicati
         ui.notifications.error("An existing tree ID cannot be changed.");
         return;
       }
-      await CompanionTreeStore.upsert({ id, name, description });
+      await CompanionTreeStore.upsert({ id, name, description, companionIdentifier });
       this.editingId = id;
       ui.notifications.info("Bespoke companion tree saved.");
       await this.render({ force: true });

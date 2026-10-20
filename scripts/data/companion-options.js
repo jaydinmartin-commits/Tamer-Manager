@@ -36,11 +36,11 @@ function companionMatches(companion, requirements) {
   const identifier = companionIdentifier(companion);
   return Boolean(identifier) && identifiers.some(value => String(value).trim().toLowerCase() === identifier);
 }
-function configuredTreeIds() {
+function configuredTrees() {
   try {
     const store = game.settings.get(MODULE_ID, "companionTrees");
-    return new Set((Array.isArray(store?.trees) ? store.trees : []).map(tree => String(tree.id)));
-  } catch { return new Set(); }
+    return new Map((Array.isArray(store?.trees) ? store.trees : []).map(tree => [String(tree.id), tree]));
+  } catch { return new Map(); }
 }
 
 export const CompanionOptions = Object.freeze({
@@ -60,16 +60,22 @@ export const CompanionOptions = Object.freeze({
     const definitions = this.read().filter(option => option.type === String(type));
     if (!companion) return definitions;
     const identifier = companionIdentifier(companion);
-    const trees = configuredTreeIds();
+    const trees = configuredTrees();
     return definitions.filter(option => {
       if (!option.treeId) {
         const identifiers = option.requirements?.companionIdentifiers ?? [];
         return !identifiers.length || companionMatches(companion, option.requirements);
       }
-      if (!trees.has(String(option.treeId)) || !identifier) return false;
-      if (String(option.treeId).trim().toLowerCase() === identifier) return true;
+      const tree = trees.get(String(option.treeId));
+      if (!tree || !identifier) return false;
+      // New trees declare the companion's system identifier explicitly. For
+      // existing trees, preserve the original convention that tree ID equals
+      // the companion identifier. An option-level identifier may narrow access,
+      // but must never bypass a mismatch with its assigned tree.
+      const expectedIdentifier = String(tree.companionIdentifier ?? tree.id).trim().toLowerCase();
+      if (expectedIdentifier !== identifier) return false;
       const identifiers = option.requirements?.companionIdentifiers ?? [];
-      return identifiers.length > 0 && companionMatches(companion, option.requirements);
+      return !identifiers.length || companionMatches(companion, option.requirements);
     });
   },
 
