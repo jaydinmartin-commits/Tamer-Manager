@@ -102,7 +102,7 @@ Hooks.once("init", () => {
   // Extend the actual D&D 5e v6 CharacterActorSheet rather than inserting a
   // detached window into the sheet. The standalone manager/header control remains
   // available as a fallback.
-  const CharacterActorSheet = game.dnd5e?.applications?.actor?.CharacterActorSheet;
+  const CharacterActorSheet = globalThis.dnd5e?.applications?.actor?.CharacterActorSheet;
   if (CharacterActorSheet && !CharacterActorSheet.__tamerManagerTabRegistered) {
     CharacterActorSheet.__tamerManagerTabRegistered = true;
     CharacterActorSheet.PARTS = {
