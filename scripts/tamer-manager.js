@@ -210,9 +210,9 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return null;
     }
 
-    // dnd5e v6's native browser fetches from all enabled source packs and has no
-    // per-window collection allowlist. Filter its Actor results for this picker
-    // only, retaining the exact native D&D 5e interface and all native filters.
+    // dnd5e v6's native browser has no per-window collection allowlist. Scope
+    // source collation to the GM-enabled Actor packs while retaining the exact
+    // native D&D 5e interface and all native filters.
     const originalFetch = CompendiumBrowser.fetch;
     companionPickerActive = true;
     let uuid;
