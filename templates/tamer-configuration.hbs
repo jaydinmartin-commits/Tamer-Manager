@@ -49,6 +49,12 @@
           <label><span>Replaces ID <small>(optional)</small></span><input name="replacesId" type="text" value="{{draft.replacesId}}"></label>
           <label class="tamer-manager-config__checkbox"><input name="repeatable" type="checkbox" {{#if draft.repeatable}}checked{{/if}}><span>Repeatable</span></label>
           <label><span>Max Selections <small>(repeatable only)</small></span><input name="maxSelections" type="number" min="1" step="1" value="{{draft.maxSelections}}"></label>
+          <fieldset class="tamer-manager-config__wide">
+            <legend>Display selected improvement</legend>
+            <label class="tamer-manager-config__checkbox"><input name="displayOnManager" type="checkbox" {{#if draft.displayOnManager}}checked{{/if}}><span>Show on Companion Manager card</span></label>
+            <label class="tamer-manager-config__checkbox"><input name="displayOnSheet" type="checkbox" {{#if draft.displayOnSheet}}checked{{/if}}><span>Add to companion character sheet</span></label>
+            <small>Display controls affect presentation only. They do not change the improvement's rules or bonuses.</small>
+          </fieldset>
         </div>
         <footer class="tamer-manager-config__footer"><span>Changes are validated before they are written to the world.</span><button type="button" data-action="saveOption"><i class="fa-solid fa-floppy-disk"></i> Save</button></footer>
       </form>
