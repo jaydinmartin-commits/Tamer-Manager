@@ -476,7 +476,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         if (!definition) continue;
         const count = Math.max(1, Math.floor(Number(selected.count ?? 1) || 1));
         for (let rank = 1; rank <= count; rank += 1) {
-          const applicationId = this.tamer.uuid + "::" + recordId + "::" + definition.id + "::rank-" + rank + "::toughen-up-v1";
+          const applicationId = this.tamer.uuid + "::" + actor.uuid + "::" + definition.id + "::rank-" + rank + "::toughen-up-v1";
           if (toughenHistory.has(applicationId)) continue;
           try {
             const application = await ToughenUpApplication.apply({ actor, applicationId });
@@ -489,8 +489,13 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
           }
         }
       }
-      const growth = await reconcileGrowthHitDie(actor, result, allDefinitions);
-      if (growth.warning) warnings.push(growth.warning);
+      try {
+        const growth = await reconcileGrowthHitDie(actor, result, allDefinitions);
+        if (growth.warning) warnings.push(growth.warning);
+      } catch (error) {
+        console.error("Tamer Manager | Growth Hit Die reconciliation failed.", error);
+        warnings.push("Growth Hit Die size could not be reconciled. Reopen and save improvements to retry.");
+      }
       const sheetSync = await syncImprovementSheetItems(actor, result, allDefinitions);
       warnings.push(...sheetSync.warnings);
       if (warnings.length) {
