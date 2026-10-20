@@ -99,6 +99,65 @@ Hooks.once("init", () => {
   Hooks.on("getHeaderControlsCharacterActorSheet", addCompanionManagerHeaderControl);
   Hooks.on("getHeaderControlsActorSheetV2", addCompanionManagerHeaderControl);
 
+  // Extend the actual D&D 5e v6 CharacterActorSheet rather than inserting a
+  // detached window into the sheet. The standalone manager/header control remains
+  // available as a fallback.
+  const CharacterActorSheet = game.dnd5e?.applications?.actor?.CharacterActorSheet;
+  if (CharacterActorSheet && !CharacterActorSheet.__tamerManagerTabRegistered) {
+    CharacterActorSheet.__tamerManagerTabRegistered = true;
+    CharacterActorSheet.PARTS = {
+      ...CharacterActorSheet.PARTS,
+      companions: {
+        container: { classes: ["tab-body", "tamer-manager"], id: "tabs" },
+        template: "modules/tamer-manager/templates/tamer-manager.hbs",
+        scrollable: [""]
+      }
+    };
+    CharacterActorSheet.TABS = [
+      ...CharacterActorSheet.TABS,
+      {
+        tab: "companions",
+        label: "Companions",
+        icon: "fa-solid fa-paw",
+        condition: actor => TamerRecords.isTamer(actor)
+      }
+    ];
+
+    const originalPreparePartContext = CharacterActorSheet.prototype._preparePartContext;
+    CharacterActorSheet.prototype._preparePartContext = async function(partId, context, options) {
+      if (partId === "companions") {
+        const managerContext = await TamerManager.prototype._prepareContext.call({ tamer: this.actor });
+        return { ...context, ...managerContext };
+      }
+      return originalPreparePartContext.call(this, partId, context, options);
+    };
+
+    const forwardManagerAction = handler => function(event, target) {
+      const context = { tamer: this.actor, render: this.render.bind(this) };
+      return handler.call(context, event, target);
+    };
+    const sheetOptions = CharacterActorSheet.DEFAULT_OPTIONS ?? {};
+    const managerActions = {
+      refresh: TamerManager._onRefresh,
+      addCompanion: TamerManager._onAddCompanion,
+      removeCompanion: TamerManager._onRemoveCompanion,
+      openCompanion: TamerManager._onOpenCompanion,
+      toggleSummon: TamerManager._onToggleSummon,
+      assignVessel: TamerManager._onAssignVessel,
+      clearVessel: TamerManager._onClearVessel,
+      manageImprovements: TamerManager._onManageImprovements
+    };
+    CharacterActorSheet.DEFAULT_OPTIONS = {
+      ...sheetOptions,
+      actions: {
+        ...(sheetOptions.actions ?? {}),
+        ...Object.fromEntries(Object.entries(managerActions).map(([name, handler]) => [name, forwardManagerAction(handler)]))
+      }
+    };
+  } else if (!CharacterActorSheet) {
+    console.warn("Tamer Manager | D&D 5e CharacterActorSheet was unavailable during init; the standalone Companion Manager remains available.");
+  }
+
   game.modules.get(MODULE_ID).api = {
     TamerManager,
     TamerDevelopmentPanel,
