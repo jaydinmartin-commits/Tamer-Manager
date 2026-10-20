@@ -76,12 +76,13 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         try { actor = await fromUuid(record.actorUuid); }
         catch { actor = null; }
       }
+      const improvementDisplay = selectedImprovementDisplay(record, CompanionOptions.byType("improvement"));
       return {
         ...record,
         actorName: actor?.name ?? record.name ?? "Missing companion Actor",
         selectedImprovements: Array.isArray(record.improvements) ? record.improvements.length : 0,
-        improvementDisplay: selectedImprovementDisplay(record, CompanionOptions.byType("improvement")),
-        hasImprovementDisplay: selectedImprovementDisplay(record, CompanionOptions.byType("improvement")).length > 0,
+        improvementDisplay,
+        hasImprovementDisplay: improvementDisplay.length > 0,
         improvementProgressLabel: (() => {
           const selectedSlots = selectedImprovementSlotCost(record, CompanionOptions.byType("improvement"));
           if (!actor || tamerLevel < 1) return `${selectedSlots} / —`;
