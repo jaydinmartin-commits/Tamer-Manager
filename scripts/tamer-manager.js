@@ -3,6 +3,7 @@ import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "./data/companion-improvement-cost.js";
+import { selectedImprovementDisplay } from "./data/companion-improvement-display.js";
 
 const MODULE_ID = "tamer-manager";
 
@@ -79,6 +80,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         ...record,
         actorName: actor?.name ?? record.name ?? "Missing companion Actor",
         selectedImprovements: Array.isArray(record.improvements) ? record.improvements.length : 0,
+        improvementDisplay: selectedImprovementDisplay(record, CompanionOptions.byType("improvement")),
+        hasImprovementDisplay: selectedImprovementDisplay(record, CompanionOptions.byType("improvement")).length > 0,
         improvementProgressLabel: (() => {
           const selectedSlots = selectedImprovementSlotCost(record, CompanionOptions.byType("improvement"));
           if (!actor || tamerLevel < 1) return `${selectedSlots} / —`;
