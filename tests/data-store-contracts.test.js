@@ -204,6 +204,19 @@ await test("failed setting write leaves prior option store intact", async () => 
   assert(JSON.stringify(CompanionOptionStore.read()) === before, "Failed write changed stored data.");
 });
 
+await test("orphaned option tree references remain editable and can be recovered", async () => {
+  await CompanionOptionStore.write([option("orphaned-tree-option", { treeId: "bespoke-missing" })]);
+  assert(CompanionOptionStore.get("orphaned-tree-option")?.treeId === "bespoke-missing",
+    "An option with a missing tree must remain readable and editable.");
+  assert(CompanionTreeStore.list().length === 0,
+    "A missing tree reference must not prevent opening the tree manager.");
+  await CompanionTreeStore.write([{ id: "bespoke-missing", name: "Recovered Bespoke Tree", description: "" }]);
+  assert(CompanionTreeStore.get("bespoke-missing")?.name === "Recovered Bespoke Tree",
+    "The missing tree should be recreatable using its referenced ID.");
+  await CompanionOptionStore.write([option("orphaned-tree-option")]);
+  await CompanionTreeStore.remove("bespoke-missing");
+});
+
 await test("tree store rejects missing tree references and blocks referenced deletion", async () => {
   await CompanionTreeStore.write([{ id: "core", name: "Core", description: "" }]);
   await CompanionOptionStore.write([option("tree-option", { treeId: "core" })]);
