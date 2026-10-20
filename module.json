@@ -2,7 +2,7 @@
   "id": "tamer-manager",
   "title": "Tamer Manager",
   "description": "A clean-room Tamer companion management module for Foundry VTT.",
-  "version": "0.1.32",
+  "version": "0.1.33",
   "authors": [
     {
       "name": "Jaydin"
@@ -20,6 +20,6 @@
     "styles/tamer-manager-config.css"
   ],
   "manifest": "https://raw.githubusercontent.com/jaydinmartin-commits/Tamer-Manager/main/module.json",
-  "download": "https://github.com/jaydinmartin-commits/Tamer-Manager/releases/download/v0.1.32/tamer-manager-v0.1.32.zip",
+  "download": "https://github.com/jaydinmartin-commits/Tamer-Manager/releases/download/v0.1.33/tamer-manager-v0.1.33.zip",
   "url": "https://github.com/jaydinmartin-commits/Tamer-Manager"
 }
