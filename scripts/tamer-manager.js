@@ -7,6 +7,7 @@ import { selectedImprovementDisplay } from "./data/companion-improvement-display
 import { syncImprovementSheetItems, reconcileGrowthHitDie } from "./data/companion-improvement-sheet-sync.js";
 import { ToughenUpApplication } from "./data/toughen-up-application.js";
 import CompendiumBrowser from "systems/dnd5e/module/applications/compendium-browser.mjs";
+import CompendiumBrowserSettingsConfig from "systems/dnd5e/module/applications/settings/compendium-browser-settings.mjs";
 
 const MODULE_ID = "tamer-manager";
 
@@ -216,15 +217,25 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     companionPickerActive = true;
     let uuid;
     try {
-      CompendiumBrowser.fetch = async function(documentClass, options = {}) {
-        const results = await originalFetch.call(this, documentClass, options);
-        if (documentClass !== CONFIG.Actor.documentClass) return results;
-        return results.filter(entry => {
-          const entryUuid = String(entry?.uuid ?? "");
-          return [...allowedCollections].some(collection =>
-            entryUuid.startsWith(`Compendium.${collection}.`)
+      CompendiumBrowser.fetch = function(documentClass, options = {}) {
+        if (documentClass !== CONFIG.Actor.documentClass) {
+          return originalFetch.call(this, documentClass, options);
+        }
+
+        // Filter at the native browser's source-collation stage so disallowed
+        // packs are never indexed for this picker (avoids unnecessary work and
+        // keeps unauthorized entries out of the browser result pipeline).
+        const originalCollateSources = CompendiumBrowserSettingsConfig.collateSources;
+        CompendiumBrowserSettingsConfig.collateSources = function() {
+          return new Set(
+            [...originalCollateSources.call(this)].filter(collection => allowedCollections.has(collection))
           );
-        });
+        };
+        try {
+          return originalFetch.call(this, documentClass, options);
+        } finally {
+          CompendiumBrowserSettingsConfig.collateSources = originalCollateSources;
+        }
       };
       uuid = await CompendiumBrowser.selectOne({
         tab: "monsters",
