@@ -4,7 +4,8 @@ import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "./data/companion-improvement-cost.js";
 import { selectedImprovementDisplay } from "./data/companion-improvement-display.js";
-import { syncImprovementSheetItems } from "./data/companion-improvement-sheet-sync.js";
+import { syncImprovementSheetItems, reconcileGrowthHitDie } from "./data/companion-improvement-sheet-sync.js";
+import { ToughenUpApplication } from "./data/toughen-up-application.js";
 import CompendiumBrowser from "systems/dnd5e/module/applications/compendium-browser.mjs";
 
 const MODULE_ID = "tamer-manager";
@@ -431,7 +432,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const value of result) {
       const definition = byId.get(value.id);
       if (!definition && unknownLegacySelections.some(([id]) => id === value.id)) continue;
-      if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record }) ||
+      if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: actor }) ||
           (definition.prerequisiteIds ?? []).some(prerequisite => !effectiveIds.has(prerequisite)) ||
           !hasRequiredImprovementReplacement(definition, resultIds, previouslySavedIds) ||
           (!definition.repeatable && value.count !== 1) ||
@@ -448,9 +449,37 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         ? { ...item, improvements: result }
         : item));
       if (!saved) throw new Error("Improvement selection did not persist.");
+      const warnings = [];
+      const toughenDefinitions = allDefinitions.filter(definition =>
+        String(definition.id ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") === "toughenup" ||
+        String(definition.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") === "toughenup"
+      );
+      const toughenById = new Map(toughenDefinitions.map(definition => [definition.id, definition]));
+      const toughenHistory = new Set(ToughenUpApplication.history(actor).map(entry => entry.applicationId));
+      for (const selected of result) {
+        const definition = toughenById.get(selected.id);
+        if (!definition) continue;
+        const count = Math.max(1, Math.floor(Number(selected.count ?? 1) || 1));
+        for (let rank = 1; rank <= count; rank += 1) {
+          const applicationId = this.tamer.uuid + "::" + recordId + "::" + definition.id + "::rank-" + rank + "::toughen-up-v1";
+          if (toughenHistory.has(applicationId)) continue;
+          try {
+            const application = await ToughenUpApplication.apply({ actor, applicationId });
+            if (!application.applied || !application.verified) {
+              warnings.push("Toughen Up rank " + rank + " needs attention (" + (application.reason ?? "application-not-verified") + ").");
+            } else toughenHistory.add(applicationId);
+          } catch (error) {
+            console.error("Tamer Manager | Toughen Up application failed.", error);
+            warnings.push("Toughen Up could not be applied completely. Reopen and save improvements to retry.");
+          }
+        }
+      }
+      const growth = await reconcileGrowthHitDie(actor, result, allDefinitions);
+      if (growth.warning) warnings.push(growth.warning);
       const sheetSync = await syncImprovementSheetItems(actor, result, allDefinitions);
-      if (sheetSync.warnings.length) {
-        ui.notifications.warn("Selections saved, but sheet synchronization needs attention: " + sheetSync.warnings.join(" "));
+      warnings.push(...sheetSync.warnings);
+      if (warnings.length) {
+        ui.notifications.warn("Selections saved, but some mechanics or sheet items need attention: " + warnings.join(" "));
       } else {
         ui.notifications.info("Companion improvements saved.");
       }

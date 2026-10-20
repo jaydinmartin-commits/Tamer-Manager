@@ -89,7 +89,8 @@ export async function reconcileGrowthHitDie(actor, selections, definitions) {
     const match = normalized.match(/growth(vi|iv|iii|ii|i|[1-6])$/);
     if (!match) return 0;
     const rank = match[1];
-    return ({ i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6 })[rank] ?? Number(rank) ?? 0;
+    const roman = ({ i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6 })[rank];
+    return roman ?? (Number(rank) || 0);
   };
   let highestRank = 0;
   for (const id of selectedIds) {
