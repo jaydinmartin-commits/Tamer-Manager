@@ -4,7 +4,6 @@ import { CompanionOptionValidator } from "./companion-option-validator.js";
 const MODULE_ID = "tamer-manager";
 const SETTING_KEY = "companionOptions";
 const SCHEMA_VERSION = 1;
-const TREE_SETTING_KEY = "companionTrees";
 
 function clone(value) { return foundry.utils.deepClone(value); }
 function emptyStore() { return { schemaVersion: SCHEMA_VERSION, definitions: [] }; }
@@ -70,20 +69,8 @@ function readRawStore() {
 }
 function readStore() {
   const store = migrateStore(readRawStore());
-  const rawTrees = game.settings?.settings?.has?.(`${MODULE_ID}.${TREE_SETTING_KEY}`)
-    ? game.settings.get(MODULE_ID, TREE_SETTING_KEY)
-    : { schemaVersion: 1, trees: [] };
-  if (!rawTrees || typeof rawTrees !== "object" || !Number.isInteger(rawTrees.schemaVersion) || rawTrees.schemaVersion !== 1 || !Array.isArray(rawTrees.trees)) {
-    throw new Error("Stored companion trees are malformed or use an unsupported schema; option assignments were not changed.");
-  }
-  const treeIds = new Set();
-  for (const tree of rawTrees.trees) {
-    if (!tree || typeof tree.id !== "string" || !tree.id.trim() || treeIds.has(tree.id)) throw new Error("Stored companion trees contain malformed or duplicate IDs; option assignments were not changed.");
-    treeIds.add(tree.id);
-  }
-  for (const definition of store.definitions) {
-    if (definition.treeId && !treeIds.has(definition.treeId)) throw new Error(`Option ${definition.id} references missing companion tree ${definition.treeId}; data was preserved.`);
-  }
+  // Orphaned tree IDs must not make option editing unavailable. Tree references
+  // are checked when a tree is written; a missing tree can then be recreated.
   return store;
 }
 function normalizeDefinitions(definitions) {
