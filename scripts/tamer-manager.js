@@ -399,9 +399,10 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
                 ? `Needs ${requiredSlots} additional slot(s); ${remaining} available`
                 : "")
         : "";
-      const description = foundry.utils.escapeHTML(String(definition.metadata?.description ?? ""));
-      const detail = disabled ? foundry.utils.escapeHTML(disabledReason) : (description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites"));
-      return `<label class="tamer-manager__improvement-option" title="${description}"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${detail}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
+      const description = String(definition.metadata?.description ?? "");
+      const escapedDescription = foundry.utils.escapeHTML(description);
+      const detail = disabled ? foundry.utils.escapeHTML(disabledReason) : (description ? foundry.utils.escapeHTML(description.replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim()) : (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites"));
+      return `<label class="tamer-manager__improvement-option" data-tooltip="${escapedDescription}" data-tooltip-direction="RIGHT" title="${escapedDescription}"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${detail}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
     }).join("");
     const legacyRows = unknownLegacySelections.map(([id, count]) =>
       `<label class="tamer-manager__improvement-option is-legacy"><input type="checkbox" checked disabled><span><strong>${foundry.utils.escapeHTML(id)}</strong><small>Previously saved selection (${count} rank${count === 1 ? "" : "s"}). Its definition is not currently configured; this selection will be preserved.</small></span></label>`
