@@ -401,7 +401,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         : "";
       const sourceItem = definition.sourceUuid ? await fromUuid(definition.sourceUuid).catch(() => null) : null;
       const rawDescription = String(definition.metadata?.description ?? sourceItem?.system?.description?.value ?? "");
-      const description = rawDescription.replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim();
+      const description = rawDescription.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
       const escapedDescription = foundry.utils.escapeHTML(description);
       const detail = disabled ? foundry.utils.escapeHTML(disabledReason) : (description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites"));
       return `<label class="tamer-manager__improvement-option" data-tooltip="${escapedDescription}" data-tooltip-direction="RIGHT" title="${escapedDescription}"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${detail}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
