@@ -466,7 +466,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         : item));
       if (!saved) throw new Error("Improvement selection did not persist.");
       const warnings = [];
-      const toughenDefinitions = allDefinitions.filter(definition =>
+      const toughenDefinitions = definitions.filter(definition =>
         String(definition.id ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") === "toughenup" ||
         String(definition.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") === "toughenup"
       );
@@ -491,7 +491,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         }
       }
       try {
-        const growth = await reconcileGrowthHitDie(actor, result, allDefinitions);
+        const growth = await reconcileGrowthHitDie(actor, result, definitions);
         if (growth.warning) warnings.push(growth.warning);
       } catch (error) {
         console.error("Tamer Manager | Growth Hit Die reconciliation failed.", error);
