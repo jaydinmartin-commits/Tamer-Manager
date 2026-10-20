@@ -2,6 +2,7 @@ const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 import { CompanionOptionDefinition } from "./data/companion-option-definition.js";
 import { CompanionOptionStore } from "./data/companion-option-store.js";
 import { CompanionTreeStore } from "./data/companion-tree-store.js";
+import { TamerTreeConfiguration } from "./tamer-tree-configuration.js";
 
 export class TamerConfiguration extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
@@ -11,6 +12,7 @@ export class TamerConfiguration extends HandlebarsApplicationMixin(ApplicationV2
     position: { width: 1050, height: 700 },
     actions: {
       newOption: TamerConfiguration._onNewOption,
+      manageTrees: TamerConfiguration._onManageTrees,
       editOption: TamerConfiguration._onEditOption,
       saveOption: TamerConfiguration._onSaveOption,
       deleteOption: TamerConfiguration._onDeleteOption,
@@ -86,6 +88,11 @@ export class TamerConfiguration extends HandlebarsApplicationMixin(ApplicationV2
       replacesId: definition.replacesId ?? "",
       treeId: definition.treeId ?? ""
     };
+  }
+
+  static async _onManageTrees() {
+    const application = new TamerTreeConfiguration();
+    await application.render({ force: true });
   }
 
   static async _onNewOption() {
