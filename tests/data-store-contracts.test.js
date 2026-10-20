@@ -4,7 +4,7 @@ import { CompanionTreeStore } from "../scripts/data/companion-tree-store.js";
 import { TamerRecords } from "../scripts/data/tamer-records.js";
 import { CompanionRecord } from "../scripts/data/companion-record.js";
 import { CompanionInitializationApplication } from "../scripts/data/companion-initialization-application.js";
-import { selectedImprovementSlotCost, additionalImprovementSlotCost } from "../scripts/data/companion-improvement-cost.js";
+import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "../scripts/data/companion-improvement-cost.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
 
@@ -81,6 +81,13 @@ await test("improvement slot accounting honors costs, repeatable ranks, and repl
     "A replacement credit larger than the new cost must not create negative slot usage.");
   assert(additionalImprovementSlotCost(2, 0) === 2,
     "An improvement without a replacement should consume its full configured cost.");
+  const selectedUpgrade = option("growth-ii", { slotCost: 2, replacesId: "growth-i" });
+  assert(hasRequiredImprovementReplacement(selectedUpgrade, new Set(["growth-i"]), new Set()),
+    "A newly selected upgrade must have its replacement selected.");
+  assert(!hasRequiredImprovementReplacement(selectedUpgrade, new Set(), new Set()),
+    "A newly selected upgrade without its replacement must be rejected.");
+  assert(hasRequiredImprovementReplacement(selectedUpgrade, new Set(), new Set(["growth-ii"])),
+    "A previously saved upgrade must remain valid if its replaced selection is absent.");
 });
 
 await test("companion record round-trip preserves vessel, summon, improvement, and splicer state", () => {
