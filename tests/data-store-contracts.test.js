@@ -389,9 +389,7 @@ await test("native companion picker limits displayed source packs and restores g
     "The selected Actor UUID must still be checked against the configured collections.");
 });
 
-const failed = results.filter(result => !result.passed);
-globalThis.__TAMER_MANAGER_STORE_TESTS__ = { passed: results.length - failed.length, failed: failed.length, tests: results };
-if (failed.length) throw new Error(JSON.stringify(globalThis.__TAMER_MANAGER_STORE_TESTS__));
+
 
 await test("option display flags default safely for legacy definitions", () => {
   const normalized = CompanionOptionDefinition.normalize(option("legacy-display"));
@@ -543,3 +541,7 @@ await test("tree upsert preserves companion identifier on partial update", async
   assert(saved?.companionIdentifier === "khaji-da", "A partial tree update must preserve its companion identifier.");
   assert(saved?.name === "Blue Beetle Revised", "The update must still save fields that were supplied.");
 });
+
+const failed = results.filter(result => !result.passed);
+globalThis.__TAMER_MANAGER_STORE_TESTS__ = { passed: results.length - failed.length, failed: failed.length, tests: results };
+if (failed.length) throw new Error(JSON.stringify(globalThis.__TAMER_MANAGER_STORE_TESTS__));
