@@ -66,7 +66,7 @@ export const CompanionTreeStore = Object.freeze({
     if (!game.user?.isGM) throw new Error("Only a GM may modify companion trees.");
     const normalized = trees.map((tree, index) => {
       if (!tree || typeof tree !== "object" || Array.isArray(tree) || !tree.id) throw new Error(`Companion tree at index ${index} is malformed.`);
-      return { ...clone(tree), id: String(tree.id), name: String(tree.name ?? "").trim(), description: String(tree.description ?? "") };
+      return { ...clone(tree), id: String(tree.id), name: String(tree.name ?? "").trim(), description: String(tree.description ?? ""), companionIdentifier: String(tree.companionIdentifier ?? "").trim() };
     });
     validateTrees(normalized, CompanionOptionStore.read().definitions);
     const store = { schemaVersion: SCHEMA_VERSION, trees: normalized };

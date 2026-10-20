@@ -456,3 +456,16 @@ await test("bespoke tree eligibility requires the configured companion identifie
   assert(!forOther.includes("growth-i") && !forOther.includes("growth-ii"), "A mismatched bespoke companion must not receive another tree's improvements.");
   assert(forOther.includes("toughen-up"), "Universal improvements remain available when the bespoke tree does not match.");
 });
+
+await test("tree store round-trips explicit companion identifiers", async () => {
+  settings.set("tamer-manager.companionOptions", { schemaVersion: 1, definitions: [] });
+  settings.set("tamer-manager.companionTrees", { schemaVersion: 1, trees: [] });
+  await CompanionTreeStore.upsert({
+    id: "blue-beetle-tree",
+    name: "Blue Beetle",
+    description: "Bespoke tree",
+    companionIdentifier: "khaji-da"
+  });
+  const saved = CompanionTreeStore.get("blue-beetle-tree");
+  assert(saved?.companionIdentifier === "khaji-da", "Saving a tree must preserve its companion identifier for eligibility filtering.");
+});
