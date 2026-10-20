@@ -76,7 +76,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         try { actor = await fromUuid(record.actorUuid); }
         catch { actor = null; }
       }
-      const improvementDisplay = selectedImprovementDisplay(record, CompanionOptions.byType("improvement"));
+      const improvementDisplay = selectedImprovementDisplay(record, CompanionOptions.byType("improvement", { companion: actor }).filter(option => option.displayOnManager !== false));
       return {
         ...record,
         actorName: actor?.name ?? record.name ?? "Missing companion Actor",
@@ -303,7 +303,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       ui.notifications.warn("The current Tamer progression does not define an improvement allowance for this companion.");
       return;
     }
-    const definitions = CompanionOptions.byType("improvement");
+    const definitions = CompanionOptions.byType("improvement", { companion: actor });
     const savedCounts = new Map();
     for (const value of record.improvements ?? []) {
       const id = typeof value === "string" ? value : String(value?.id ?? "");
@@ -329,7 +329,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const count = savedCounts.get(definition.id) ?? 0;
       const isSelected = count > 0;
       const prerequisitesMet = (definition.prerequisiteIds ?? []).every(id => effectiveSelectedIds.has(id));
-      const levelMet = CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record });
+      const levelMet = CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: actor });
       const replacementMet = !definition.replacesId || effectiveSelectedIds.has(definition.replacesId);
       const replacedCost = definition.replacesId && effectiveSelectedIds.has(definition.replacesId)
         ? (Number(byId.get(definition.replacesId)?.slotCost) || 0) * (savedCounts.get(definition.replacesId) ?? 1)
@@ -349,9 +349,10 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
                 ? `Needs ${requiredSlots} additional slot(s); ${remaining} available`
                 : "")
         : "";
-      const description = foundry.utils.escapeHTML(String(definition.metadata?.description ?? ""));
-      const detail = disabled ? foundry.utils.escapeHTML(disabledReason) : (description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites"));
-      return `<label class="tamer-manager__improvement-option"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${detail}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
+      const description = String(definition.metadata?.description ?? "");
+      const tooltip = foundry.utils.escapeHTML(description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim());
+      const detail = disabled ? foundry.utils.escapeHTML(disabledReason) : (tooltip || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites"));
+      return `<label class="tamer-manager__improvement-option" title="${tooltip}" data-tooltip="${tooltip}"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${detail}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
     }).join("");
     const legacyRows = unknownLegacySelections.map(([id, count]) =>
       `<label class="tamer-manager__improvement-option is-legacy"><input type="checkbox" checked disabled><span><strong>${foundry.utils.escapeHTML(id)}</strong><small>Previously saved selection (${count} rank${count === 1 ? "" : "s"}). Its definition is not currently configured; this selection will be preserved.</small></span></label>`
@@ -397,7 +398,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const value of result) {
       const definition = byId.get(value.id);
       if (!definition && unknownLegacySelections.some(([id]) => id === value.id)) continue;
-      if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record }) ||
+      if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: actor }) ||
           (definition.prerequisiteIds ?? []).some(prerequisite => !effectiveIds.has(prerequisite)) ||
           !hasRequiredImprovementReplacement(definition, resultIds, previouslySavedIds) ||
           (!definition.repeatable && value.count !== 1) ||

@@ -25,21 +25,33 @@ function getTamerLevel(actor) {
   return Number.isFinite(levels) ? levels : 0;
 }
 
-function companionMatches(record, requirements) {
-  const identifiers = requirements.companionIdentifiers ?? [];
-  if (!identifiers.length) return true;
-
-  const actorUuid = String(record?.actorUuid ?? "");
-  const actor = actorUuid && globalThis.fromUuidSync ? globalThis.fromUuidSync(actorUuid) : null;
-  const identifier = String(
+function companionIdentifier(companion) {
+  const actor = companion?.documentName === "Actor" ? companion : null;
+  return String(
     actor?.system?.identifier ??
-    actor?.identifier ??
+    actor?.system?.details?.identifier ??
+    actor?.flags?.["tamer-manager"]?.companionIdentifier ??
+    companion?.companionIdentifier ??
     ""
   ).trim().toLowerCase();
+}
 
-  return identifiers.some(value =>
+function companionMatches(companion, requirements) {
+  const identifiers = requirements.companionIdentifiers ?? [];
+  if (!identifiers.length) return true;
+  const identifier = companionIdentifier(companion);
+  return Boolean(identifier) && identifiers.some(value =>
     String(value).trim().toLowerCase() === identifier
   );
+}
+
+function configuredTreeIds() {
+  try {
+    const store = game.settings.get(MODULE_ID, "companionTrees");
+    return new Set((Array.isArray(store?.trees) ? store.trees : []).map(tree => String(tree.id)));
+  } catch {
+    return new Set();
+  }
 }
 
 export const CompanionOptions = Object.freeze({
@@ -55,8 +67,20 @@ export const CompanionOptions = Object.freeze({
     return this.read().find(option => option.id === String(id)) ?? null;
   },
 
-  byType(type) {
-    return this.read().filter(option => option.type === String(type));
+  byType(type, { companion = null } = {}) {
+    const definitions = this.read().filter(option => option.type === String(type));
+    if (!companion) return definitions;
+    const identifier = companionIdentifier(companion);
+    const trees = configuredTreeIds();
+    return definitions.filter(option => {
+      if (!option.treeId) {
+        const identifiers = option.requirements?.companionIdentifiers ?? [];
+        return !identifiers.length || companionMatches(companion, option.requirements);
+      }
+      if (!trees.has(String(option.treeId)) || !identifier) return false;
+      if (String(option.treeId).trim().toLowerCase() === identifier) return true;
+      return companionMatches(companion, option.requirements);
+    });
   },
 
   isAvailable(option, { tamer = null, companion = null } = {}) {
