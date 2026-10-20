@@ -232,9 +232,10 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
           // replace its Actor-source list with the GM's explicit Tamer Manager
           // allowlist. This setting must work independently of global dnd5e
           // browser source preferences.
-          const itemSources = nativeSources.filter(collection =>
-            game.packs.get(collection)?.documentName !== "Actor"
-          );
+          const itemSources = nativeSources.filter(collection => {
+            const pack = game.packs.get(collection);
+            return pack?.documentName !== "Actor" && pack?.metadata?.type !== "Actor";
+          });
           return new Set([...itemSources, ...allowedCollections]);
         };
         try {
