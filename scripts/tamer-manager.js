@@ -182,10 +182,13 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
   static async chooseActor(tamer) {
     if (!tamer || !TamerRecords.isTamer(tamer)) return null;
     const configured = game.settings.get(MODULE_ID, "companionCompendiums") ?? [];
-    const allowedCollections = new Set(configured.filter(collection =>
-      game.packs?.get(collection)?.documentName === "Actor" &&
-      game.packs?.get(collection)?.visible
-    ));
+    const allowedCollections = new Set(configured.filter(collection => {
+      const pack = game.packs?.get(collection);
+      // Foundry exposes documentName on normal CompendiumCollection instances,
+      // while some compatible pack wrappers only expose metadata.type.
+      return (pack?.documentName === "Actor" || pack?.metadata?.type === "Actor") &&
+        Boolean(pack.visible);
+    }));
     if (!allowedCollections.size) {
       ui.notifications.warn("No visible Actor compendiums are configured. Ask the GM to use Tamer Manager → Configure Compendiums.");
       return null;
