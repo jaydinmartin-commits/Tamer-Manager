@@ -43,7 +43,7 @@ function migrate(value, definitions) {
     if (!tree || typeof tree !== "object" || Array.isArray(tree) || !tree.id) {
       throw new Error(`Stored companion tree at index ${index} is malformed; data was preserved.`);
     }
-    return { ...clone(tree), id: String(tree.id), name: String(tree.name ?? ""), description: String(tree.description ?? "") };
+    return { ...clone(tree), id: String(tree.id), name: String(tree.name ?? ""), description: String(tree.description ?? ""), companionIdentifier: String(tree.companionIdentifier ?? "").trim() };
   });
   // Read existing trees even if an option has a stale treeId. The GM must be able
   // to open configuration and either recreate the missing tree or repair the option.
@@ -66,7 +66,7 @@ export const CompanionTreeStore = Object.freeze({
     if (!game.user?.isGM) throw new Error("Only a GM may modify companion trees.");
     const normalized = trees.map((tree, index) => {
       if (!tree || typeof tree !== "object" || Array.isArray(tree) || !tree.id) throw new Error(`Companion tree at index ${index} is malformed.`);
-      return { ...clone(tree), id: String(tree.id), name: String(tree.name ?? "").trim(), description: String(tree.description ?? "") };
+      return { ...clone(tree), id: String(tree.id), name: String(tree.name ?? "").trim(), description: String(tree.description ?? ""), companionIdentifier: String(tree.companionIdentifier ?? "").trim() };
     });
     validateTrees(normalized, CompanionOptionStore.read().definitions);
     const store = { schemaVersion: SCHEMA_VERSION, trees: normalized };
@@ -76,8 +76,18 @@ export const CompanionTreeStore = Object.freeze({
   async upsert(tree) {
     if (!tree?.id) throw new Error("A companion tree ID is required.");
     const trees = this.list();
-    const normalized = { ...clone(tree), id: String(tree.id), name: String(tree.name ?? "").trim(), description: String(tree.description ?? "") };
-    const index = trees.findIndex(item => item.id === normalized.id);
+    const id = String(tree.id);
+    const index = trees.findIndex(item => item.id === id);
+    const existing = index < 0 ? {} : trees[index];
+    // Older edit forms may omit the newer identifier field; preserve it on partial updates.
+    const normalized = {
+      ...clone(existing),
+      ...clone(tree),
+      id,
+      name: String(tree.name ?? existing.name ?? "").trim(),
+      description: String(tree.description ?? existing.description ?? ""),
+      companionIdentifier: String(tree.companionIdentifier ?? existing.companionIdentifier ?? "").trim()
+    };
     if (index < 0) trees.push(normalized); else trees[index] = normalized;
     return this.write(trees);
   },

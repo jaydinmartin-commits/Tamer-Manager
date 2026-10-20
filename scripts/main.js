@@ -2,6 +2,7 @@ import { TamerManager } from "./tamer-manager.js";
 import { TamerDevelopmentPanel } from "./tamer-development-panel.js";
 import { TamerConfiguration } from "./tamer-configuration.js";
 import { TamerTreeConfiguration } from "./tamer-tree-configuration.js";
+import { TamerCompendiumConfiguration } from "./tamer-compendium-configuration.js";
 import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptionDefinition } from "./data/companion-option-definition.js";
 import { CompanionOptionStore } from "./data/companion-option-store.js";
@@ -35,6 +36,21 @@ Hooks.once("init", () => {
     hint: "Internal configuration storage for named companion improvement trees.",
     scope: "world", config: false, type: Object,
     default: { schemaVersion: 1, trees: [] }
+  });
+
+  game.settings.register(MODULE_ID, "companionCompendiums", {
+    name: "Tamer Manager Companion Compendiums",
+    hint: "Compendium collections allowed in the native Add Companion picker.",
+    scope: "world", config: false, type: Array, default: []
+  });
+
+  game.settings.registerMenu(MODULE_ID, "companionCompendiumsConfig", {
+    name: "Companion Source Compendiums",
+    label: "Configure Compendiums",
+    hint: "Choose which Actor compendiums are available when adding a companion.",
+    icon: "fa-solid fa-books",
+    type: TamerCompendiumConfiguration,
+    restricted: true
   });
 
   game.settings.registerMenu(MODULE_ID, "developmentPanel", {
@@ -83,11 +99,71 @@ Hooks.once("init", () => {
   Hooks.on("getHeaderControlsCharacterActorSheet", addCompanionManagerHeaderControl);
   Hooks.on("getHeaderControlsActorSheetV2", addCompanionManagerHeaderControl);
 
+  // Extend the actual D&D 5e v6 CharacterActorSheet rather than inserting a
+  // detached window into the sheet. The standalone manager/header control remains
+  // available as a fallback.
+  const CharacterActorSheet = globalThis.dnd5e?.applications?.actor?.CharacterActorSheet;
+  if (CharacterActorSheet && !CharacterActorSheet.__tamerManagerTabRegistered) {
+    CharacterActorSheet.__tamerManagerTabRegistered = true;
+    CharacterActorSheet.PARTS = {
+      ...CharacterActorSheet.PARTS,
+      companions: {
+        container: { classes: ["tab-body", "tamer-manager"], id: "tabs" },
+        template: "modules/tamer-manager/templates/tamer-manager.hbs",
+        scrollable: [""]
+      }
+    };
+    CharacterActorSheet.TABS = [
+      ...CharacterActorSheet.TABS,
+      {
+        tab: "companions",
+        label: "Companions",
+        icon: "fa-solid fa-paw",
+        condition: actor => TamerRecords.isTamer(actor)
+      }
+    ];
+
+    const originalPreparePartContext = CharacterActorSheet.prototype._preparePartContext;
+    CharacterActorSheet.prototype._preparePartContext = async function(partId, context, options) {
+      if (partId === "companions") {
+        const managerContext = await TamerManager.prototype._prepareContext.call({ tamer: this.actor });
+        return { ...context, ...managerContext, inSheetTab: true };
+      }
+      return originalPreparePartContext.call(this, partId, context, options);
+    };
+
+    const forwardManagerAction = handler => function(event, target) {
+      const context = { tamer: this.actor, render: this.render.bind(this) };
+      return handler.call(context, event, target);
+    };
+    const sheetOptions = CharacterActorSheet.DEFAULT_OPTIONS ?? {};
+    const managerActions = {
+      tamerRefresh: TamerManager._onRefresh,
+      tamerAddCompanion: TamerManager._onAddCompanion,
+      tamerRemoveCompanion: TamerManager._onRemoveCompanion,
+      tamerOpenCompanion: TamerManager._onOpenCompanion,
+      tamerToggleSummon: TamerManager._onToggleSummon,
+      tamerAssignVessel: TamerManager._onAssignVessel,
+      tamerClearVessel: TamerManager._onClearVessel,
+      tamerManageImprovements: TamerManager._onManageImprovements
+    };
+    CharacterActorSheet.DEFAULT_OPTIONS = {
+      ...sheetOptions,
+      actions: {
+        ...(sheetOptions.actions ?? {}),
+        ...Object.fromEntries(Object.entries(managerActions).map(([name, handler]) => [name, forwardManagerAction(handler)]))
+      }
+    };
+  } else if (!CharacterActorSheet) {
+    console.warn("Tamer Manager | D&D 5e CharacterActorSheet was unavailable during init; the standalone Companion Manager remains available.");
+  }
+
   game.modules.get(MODULE_ID).api = {
     TamerManager,
     TamerDevelopmentPanel,
     TamerConfiguration,
     TamerTreeConfiguration,
+    TamerCompendiumConfiguration,
     TamerRecords,
     CompanionOptionDefinition,
     CompanionOptionStore,

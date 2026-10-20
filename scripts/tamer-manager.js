@@ -4,8 +4,17 @@ import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "./data/companion-improvement-cost.js";
 import { selectedImprovementDisplay } from "./data/companion-improvement-display.js";
+import { syncImprovementSheetItems, reconcileGrowthHitDie } from "./data/companion-improvement-sheet-sync.js";
+import { ToughenUpApplication } from "./data/toughen-up-application.js";
+import CompendiumBrowser from "systems/dnd5e/module/applications/compendium-browser.mjs";
+import CompendiumBrowserSettingsConfig from "systems/dnd5e/module/applications/settings/compendium-browser-settings.mjs";
 
 const MODULE_ID = "tamer-manager";
+
+// The dnd5e v6 browser does not expose a per-instance pack allowlist. Scope a
+// fetch filter to the lifetime of this picker so its native UI only lists the
+// GM-enabled Actor packs. The guard prevents overlapping Tamer pickers.
+let companionPickerActive = false;
 
 
 const ADD_REASONS = {
@@ -67,6 +76,20 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
        String(item.system?.identifier ?? "").trim().toLowerCase() === "tamer")
     );
     const tamerLevel = Number(tamerClass?.system?.levels) || 0;
+    const resourceFor = names => {
+      const item = this.tamer?.items?.find(candidate => {
+        const name = String(candidate.name ?? "").trim().toLowerCase();
+        const identifier = String(candidate.system?.identifier ?? "").trim().toLowerCase();
+        return names.includes(name) || names.includes(identifier);
+      });
+      const uses = item?.system?.uses;
+      if (!item || !uses || uses.max == null) return null;
+      return { name: item.name, value: uses.value ?? 0, max: uses.max };
+    };
+    const resources = [
+      resourceFor(["soul bond", "soul-bond"]),
+      resourceFor(["splicer", "splicer points", "splicer-points"])
+    ].filter(Boolean);
     let progression = null;
     try { if (tamerLevel >= 1 && tamerLevel <= 20) progression = TamerCompanionSummary.forLevel(tamerLevel); }
     catch { progression = null; }
@@ -76,7 +99,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         try { actor = await fromUuid(record.actorUuid); }
         catch { actor = null; }
       }
-      const improvementDisplay = selectedImprovementDisplay(record, CompanionOptions.byType("improvement"));
+      const improvementDisplay = selectedImprovementDisplay(record, CompanionOptions.byType("improvement", { companion: actor }).filter(option => option.displayOnManager !== false));
       return {
         ...record,
         actorName: actor?.name ?? record.name ?? "Missing companion Actor",
@@ -109,6 +132,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         availableImprovements: actor && tamerLevel >= 1 ? (() => { try { return TamerCompanionSummary.trainingFor(tamerLevel, actor.system?.details?.cr ?? actor.system?.details?.challenge).improvements; } catch { return null; } })() : null,
         vesselName: record.vesselName || (record.vesselUuid ? "Assigned vessel" : "No vessel assigned"),
         isSummoned: record.status === "summoned",
+        isSummonedBespoke: record.status === "summoned" && CompanionOptions.byType("improvement", { companion: actor }).some(option => Boolean(option.treeId)),
         statusLabel: record.status === "summoned" ? "Summoned" : (record.vesselUuid || record.vesselName ? "Stored in vessel" : "In vessel (unassigned)"),
         actorExists: Boolean(actor),
         actorUuid: record.actorUuid ?? "",
@@ -124,7 +148,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         slot: index + 1
       };
     }));
-    return { moduleId: MODULE_ID, tamer: this.tamer, companions,
+    return { moduleId: MODULE_ID, tamer: this.tamer, companions, resources, hasResources: resources.length > 0,
       tamerLevel, companionCount: records.length,
       maxCompanions: progression?.maxCompanions ?? null,
       hasTamer: Boolean(this.tamer), canManage: Boolean(this.tamer && TamerRecords.isTamer(this.tamer)) };
@@ -163,35 +187,117 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static async chooseActor(tamer) {
     if (!tamer || !TamerRecords.isTamer(tamer)) return null;
-    const existing = new Set(TamerRecords.read(tamer).map(record => record.actorUuid));
-    const candidates = (game.actors?.contents ?? []).filter(actor => actor !== tamer && actor.type === "npc" && !existing.has(actor.uuid));
-    if (!candidates.length) {
-      ui.notifications.warn("No eligible unregistered Actor documents are available to add.");
+    const configured = game.settings.get(MODULE_ID, "companionCompendiums") ?? [];
+    const allowedCollections = new Set(configured.filter(collection => {
+      const pack = game.packs?.get(collection);
+      // Foundry exposes documentName on normal CompendiumCollection instances,
+      // while some compatible pack wrappers only expose metadata.type.
+      return (pack?.documentName === "Actor" || pack?.metadata?.type === "Actor") &&
+        Boolean(pack.visible);
+    }));
+    if (!allowedCollections.size) {
+      ui.notifications.warn("No visible Actor compendiums are configured. Ask the GM to use Tamer Manager → Configure Compendiums.");
       return null;
     }
-    const options = candidates.map(actor =>
-      `<option value="${actor.uuid}">${foundry.utils.escapeHTML(actor.name)}</option>`).join("");
-    const result = await foundry.applications.api.DialogV2.wait({
-      window: { title: "Add Companion" },
-      content: `<form><label>Companion <select name="actor">${options}</select></label></form>`,
-      buttons: [
-        { action: "select", label: "Add", default: true,
-          callback: (event, button) => button.form.elements.actor.value },
-        { action: "cancel", label: "Cancel" }
-      ]
-    });
-    return result ? fromUuid(result).catch(() => null) : null;
+
+    // Use the native D&D 5e v6 Compendium Browser imported from its system module.
+    if (typeof CompendiumBrowser?.selectOne !== "function") {
+      ui.notifications.error("The D&D 5e Compendium Browser is unavailable. Confirm that dnd5e v6 has finished initializing.");
+      return null;
+    }
+    if (companionPickerActive) {
+      ui.notifications.warn("The companion picker is already open.");
+      return null;
+    }
+
+    // dnd5e v6's native browser has no per-window collection allowlist. Scope
+    // source collation to the GM-enabled Actor packs while retaining the exact
+    // native D&D 5e interface and all native filters.
+    const originalFetch = CompendiumBrowser.fetch;
+    companionPickerActive = true;
+    let uuid;
+    try {
+      CompendiumBrowser.fetch = async function(documentClass, options = {}) {
+        if (documentClass !== CONFIG.Actor.documentClass) {
+          return originalFetch.call(this, documentClass, options);
+        }
+
+        // Filter at the native browser's source-collation stage so disallowed
+        // packs are never indexed for this picker (avoids unnecessary work and
+        // keeps unauthorized entries out of the browser result pipeline).
+        const originalCollateSources = CompendiumBrowserSettingsConfig.collateSources;
+        CompendiumBrowserSettingsConfig.collateSources = function() {
+          const nativeSources = [...originalCollateSources.call(this)];
+          // Preserve the system's normal Item sources for browser internals, but
+          // replace its Actor-source list with the GM's explicit Tamer Manager
+          // allowlist. This setting must work independently of global dnd5e
+          // browser source preferences.
+          const itemSources = nativeSources.filter(collection => {
+            const pack = game.packs.get(collection);
+            return pack?.documentName !== "Actor" && pack?.metadata?.type !== "Actor";
+          });
+          return new Set([...itemSources, ...allowedCollections]);
+        };
+        try {
+          // Await the index operation: its source-collation call happens during
+          // this asynchronous work, not synchronously at invocation time.
+          return await originalFetch.call(this, documentClass, options);
+        } finally {
+          CompendiumBrowserSettingsConfig.collateSources = originalCollateSources;
+        }
+      };
+      uuid = await CompendiumBrowser.selectOne({
+        tab: "monsters",
+        filters: {
+          locked: { documentClass: "Actor", types: new Set(["npc"]) },
+          initial: { documentClass: "Actor", types: new Set(["npc"]) }
+        },
+        selection: { min: 1, max: 1 }
+      });
+    } finally {
+      CompendiumBrowser.fetch = originalFetch;
+      companionPickerActive = false;
+    }
+    if (!uuid) return null;
+
+    const collection = [...allowedCollections].find(name => uuid.startsWith(`Compendium.${name}.`));
+    if (!collection) {
+      ui.notifications.warn("That Actor is not from a compendium enabled by the GM for Tamer Manager.");
+      return null;
+    }
+    const source = await fromUuid(uuid).catch(() => null);
+    if (!source || source.type !== "npc") {
+      ui.notifications.warn("Choose an NPC Actor from an enabled compendium.");
+      return null;
+    }
+    // Compendium documents must never be modified in place. Create a world Actor
+    // copy before initialization, then let the existing initialization/recovery
+    // contract manage the world document as it would a manually created NPC.
+    const data = source.toObject();
+    delete data._id;
+    data.folder = null;
+    foundry.utils.setProperty(data, "flags.tamer-manager.sourceUuid", uuid);
+    const companion = await Actor.create(data);
+    if (!companion) {
+      ui.notifications.error("Foundry could not create a world Actor from the selected compendium entry.");
+      return null;
+    }
+    return companion;
   }
 
   static async _onRefresh() { await this.render({ force: true }); }
 
   static async _onAddCompanion() {
     if (!this.tamer) return;
-    const actor = await this.constructor.chooseActor(this.tamer);
+    const actor = await TamerManager.chooseActor(this.tamer);
     if (!actor) return;
 
     const preview = await TamerRecords.previewAdd(this.tamer, actor);
     if (!preview.eligible) {
+      if (actor.getFlag?.(MODULE_ID, "sourceUuid")) {
+        try { await actor.delete(); }
+        catch (error) { console.error("Tamer Manager | Could not clean up rejected compendium Actor.", error); }
+      }
       ui.notifications.warn(ADD_REASONS[preview.reason] ?? `Companion could not be added (${preview.reason ?? "eligibility-check-failed"}).`);
       return;
     }
@@ -303,7 +409,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       ui.notifications.warn("The current Tamer progression does not define an improvement allowance for this companion.");
       return;
     }
-    const definitions = CompanionOptions.byType("improvement");
+    const allDefinitions = CompanionOptions.byType("improvement");
+    const definitions = CompanionOptions.byType("improvement", { companion: actor });
     const savedCounts = new Map();
     for (const value of record.improvements ?? []) {
       const id = typeof value === "string" ? value : String(value?.id ?? "");
@@ -319,17 +426,17 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const definition = byId.get(id);
       if (definition?.replacesId) effectiveSelectedIds.delete(definition.replacesId);
     }
-    const selectedCount = selectedImprovementSlotCost(record, definitions);
+    const selectedCount = selectedImprovementSlotCost(record, allDefinitions);
     const unknownLegacySelections = [...savedCounts.entries()].filter(([id]) => !byId.has(id));
     if (!definitions.length && !unknownLegacySelections.length) {
       ui.notifications.warn("No companion improvements have been configured by the GM yet.");
       return;
     }
-    const rows = definitions.map(definition => {
+    const rows = await Promise.all(definitions.map(async definition => {
       const count = savedCounts.get(definition.id) ?? 0;
       const isSelected = count > 0;
       const prerequisitesMet = (definition.prerequisiteIds ?? []).every(id => effectiveSelectedIds.has(id));
-      const levelMet = CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record });
+      const levelMet = CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: actor });
       const replacementMet = !definition.replacesId || effectiveSelectedIds.has(definition.replacesId);
       const replacedCost = definition.replacesId && effectiveSelectedIds.has(definition.replacesId)
         ? (Number(byId.get(definition.replacesId)?.slotCost) || 0) * (savedCounts.get(definition.replacesId) ?? 1)
@@ -349,10 +456,13 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
                 ? `Needs ${requiredSlots} additional slot(s); ${remaining} available`
                 : "")
         : "";
-      const description = foundry.utils.escapeHTML(String(definition.metadata?.description ?? ""));
+      const sourceItem = definition.sourceUuid ? await fromUuid(definition.sourceUuid).catch(() => null) : null;
+      const rawDescription = String(definition.metadata?.description ?? sourceItem?.system?.description?.value ?? "");
+      const description = rawDescription.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      const escapedDescription = foundry.utils.escapeHTML(description);
       const detail = disabled ? foundry.utils.escapeHTML(disabledReason) : (description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites"));
-      return `<label class="tamer-manager__improvement-option"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${detail}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
-    }).join("");
+      return `<label class="tamer-manager__improvement-option" data-tooltip="${escapedDescription}" data-tooltip-direction="RIGHT" title="${escapedDescription}"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${detail}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
+    }));
     const legacyRows = unknownLegacySelections.map(([id, count]) =>
       `<label class="tamer-manager__improvement-option is-legacy"><input type="checkbox" checked disabled><span><strong>${foundry.utils.escapeHTML(id)}</strong><small>Previously saved selection (${count} rank${count === 1 ? "" : "s"}). Its definition is not currently configured; this selection will be preserved.</small></span></label>`
     ).join("");
@@ -361,7 +471,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       : "";
     const result = await foundry.applications.api.DialogV2.wait({
       window: { title: `Manage Improvements — ${actor.name}` },
-      content: `<form><p>Choose up to ${maximum} improvement slots. Repeatable improvements can use multiple slots when permitted.</p>${legacyNotice}<div class="tamer-manager__improvement-list">${legacyRows}${rows}</div></form>`,
+      content: `<form><p>Choose up to ${maximum} improvement slots. Repeatable improvements can use multiple slots when permitted.</p>${legacyNotice}<div class="tamer-manager__improvement-list">${legacyRows}${rows.join("")}</div></form>`,
       buttons: [
         { action: "save", label: "Save", default: true, callback: (event, button) => {
           const form = button.form;
@@ -389,7 +499,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     const resultDefinitions = result.map(value => byId.get(value.id));
     const effectiveIds = new Set([...resultIds].filter(id => !resultDefinitions.some(definition => definition?.replacesId === id)));
-    const effectiveCount = selectedImprovementSlotCost({ improvements: result }, definitions);
+    const effectiveCount = selectedImprovementSlotCost({ improvements: result }, allDefinitions);
     if (effectiveCount > maximum) {
       ui.notifications.warn(`This companion can have at most ${maximum} effective improvement slots at the Tamer's current level.`);
       return;
@@ -397,7 +507,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const value of result) {
       const definition = byId.get(value.id);
       if (!definition && unknownLegacySelections.some(([id]) => id === value.id)) continue;
-      if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record }) ||
+      if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: actor }) ||
           (definition.prerequisiteIds ?? []).some(prerequisite => !effectiveIds.has(prerequisite)) ||
           !hasRequiredImprovementReplacement(definition, resultIds, previouslySavedIds) ||
           (!definition.repeatable && value.count !== 1) ||
@@ -414,7 +524,45 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         ? { ...item, improvements: result }
         : item));
       if (!saved) throw new Error("Improvement selection did not persist.");
-      ui.notifications.info("Companion improvements saved.");
+      const warnings = [];
+      const toughenDefinitions = definitions.filter(definition =>
+        String(definition.id ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") === "toughenup" ||
+        String(definition.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") === "toughenup"
+      );
+      const toughenById = new Map(toughenDefinitions.map(definition => [definition.id, definition]));
+      const toughenHistory = new Set(ToughenUpApplication.history(actor).map(entry => entry.applicationId));
+      for (const selected of result) {
+        const definition = toughenById.get(selected.id);
+        if (!definition) continue;
+        const count = Math.max(1, Math.floor(Number(selected.count ?? 1) || 1));
+        for (let rank = 1; rank <= count; rank += 1) {
+          const applicationId = this.tamer.uuid + "::" + actor.uuid + "::" + definition.id + "::rank-" + rank + "::toughen-up-v1";
+          if (toughenHistory.has(applicationId)) continue;
+          try {
+            const application = await ToughenUpApplication.apply({ actor, applicationId });
+            if (!application.applied || !application.verified) {
+              warnings.push("Toughen Up rank " + rank + " needs attention (" + (application.reason ?? "application-not-verified") + ").");
+            } else toughenHistory.add(applicationId);
+          } catch (error) {
+            console.error("Tamer Manager | Toughen Up application failed.", error);
+            warnings.push("Toughen Up could not be applied completely. Reopen and save improvements to retry.");
+          }
+        }
+      }
+      try {
+        const growth = await reconcileGrowthHitDie(actor, result, definitions);
+        if (growth.warning) warnings.push(growth.warning);
+      } catch (error) {
+        console.error("Tamer Manager | Growth Hit Die reconciliation failed.", error);
+        warnings.push("Growth Hit Die size could not be reconciled. Reopen and save improvements to retry.");
+      }
+      const sheetSync = await syncImprovementSheetItems(actor, result, definitions, allDefinitions);
+      warnings.push(...sheetSync.warnings);
+      if (warnings.length) {
+        ui.notifications.warn("Selections saved, but some mechanics or sheet items need attention: " + warnings.join(" "));
+      } else {
+        ui.notifications.info("Companion improvements saved.");
+      }
       await this.render({ force: true });
     } catch (error) {
       console.error("Tamer Manager | Improvement selection failed.", error);

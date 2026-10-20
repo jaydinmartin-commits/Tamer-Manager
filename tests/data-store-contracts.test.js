@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { CompanionOptionStore } from "../scripts/data/companion-option-store.js";
 import { CompanionOptionValidator } from "../scripts/data/companion-option-validator.js";
 import { CompanionTreeStore } from "../scripts/data/companion-tree-store.js";
@@ -6,6 +7,9 @@ import { CompanionRecord } from "../scripts/data/companion-record.js";
 import { CompanionInitializationApplication } from "../scripts/data/companion-initialization-application.js";
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "../scripts/data/companion-improvement-cost.js";
 import { selectedImprovementDisplay } from "../scripts/data/companion-improvement-display.js";
+import { CompanionOptionDefinition } from "../scripts/data/companion-option-definition.js";
+import { CompanionOptions } from "../scripts/data/companion-options.js";
+import { reconcileGrowthHitDie, syncImprovementSheetItems } from "../scripts/data/companion-improvement-sheet-sync.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
 
@@ -363,6 +367,179 @@ await test("initialization recovery repairs a failed relationship write without 
     if (oldRoll === undefined) delete globalThis.Roll; else globalThis.Roll = oldRoll;
     if (oldRandomID === undefined) delete globalThis.foundry.utils.randomID; else globalThis.foundry.utils.randomID = oldRandomID;
   }
+});
+
+await test("native companion picker limits displayed source packs and restores global browser methods", () => {
+  const source = readFileSync(new URL("../scripts/tamer-manager.js", import.meta.url), "utf8");
+  assert(source.includes("CompendiumBrowser.selectOne({"),
+    "Add Companion must use the native D&D 5e Compendium Browser.");
+  assert(source.includes("CompendiumBrowser.fetch = async function(documentClass, options = {})"),
+    "The native browser fetch wrapper must be asynchronous.");
+  assert(source.includes("await originalFetch.call(this, documentClass, options)"),
+    "The allowlist must remain active while the browser asynchronously indexes results.");
+  assert(source.includes("CompendiumBrowserSettingsConfig.collateSources = function()"),
+    "The allowlist must filter source collation before Actor pack indexing.");
+  assert(source.includes("return new Set([...itemSources, ...allowedCollections])"),
+    "The configured Actor allowlist must be combined with normal non-Actor browser sources.");
+  assert(source.includes("CompendiumBrowserSettingsConfig.collateSources = originalCollateSources"),
+    "The original source-collation method must be restored after indexing.");
+  assert(source.includes("CompendiumBrowser.fetch = originalFetch"),
+    "The original browser fetch method must be restored after selection or cancellation.");
+  assert(source.includes('uuid.startsWith(`Compendium.${name}.`)'),
+    "The selected Actor UUID must still be checked against the configured collections.");
+});
+
+
+
+await test("option display flags default safely for legacy definitions", () => {
+  const normalized = CompanionOptionDefinition.normalize(option("legacy-display"));
+  assert(normalized.displayOnManager === true, "Legacy options should remain visible on the manager card by default.");
+  assert(normalized.displayOnSheet === false, "Legacy options should not be copied to companion sheets without an explicit opt-in.");
+});
+
+await test("growth hit die reconciliation is reversible and idempotent", async () => {
+  const flags = {};
+  const actor = {
+    system: { attributes: { hd: { denomination: 6 } } },
+    getFlag(scope, key) { return flags[scope]?.[key]; },
+    async update(changes) {
+      for (const [key, value] of Object.entries(changes)) {
+        if (key === "system.attributes.hd.denomination") this.system.attributes.hd.denomination = value;
+        else if (key === "flags.tamer-manager.growthHitDieState") {
+          flags["tamer-manager"] ??= {};
+          flags["tamer-manager"].growthHitDieState = structuredClone(value);
+        } else if (key === "flags.tamer-manager.-=growthHitDieState") {
+          if (flags["tamer-manager"]) delete flags["tamer-manager"].growthHitDieState;
+        }
+      }
+    },
+    async unsetFlag(scope, key) { if (flags[scope]) delete flags[scope][key]; }
+  };
+  const definitions = [
+    option("growth-i", { treeId: "tree-a" }),
+    option("growth-ii", { treeId: "tree-a" }),
+    option("growth-iii", { treeId: "tree-a" }),
+    option("growth-iv", { treeId: "tree-a" })
+  ];
+  const first = await reconcileGrowthHitDie(actor, [{ id: "growth-ii", count: 1 }], definitions);
+  assert(first.changed && actor.system.attributes.hd.denomination === 8, "Growth II should set the Hit Die denomination to d8.");
+  const upgraded = await reconcileGrowthHitDie(actor, [{ id: "growth-iii", count: 1 }], definitions);
+  assert(upgraded.changed && actor.system.attributes.hd.denomination === 10, "Growth III should upgrade the Hit Die denomination to d10.");
+  const repeated = await reconcileGrowthHitDie(actor, [{ id: "growth-iii", count: 1 }], definitions);
+  assert(!repeated.changed && actor.system.attributes.hd.denomination === 10, "Saving the same Growth selection twice should not reapply or lose the original denomination.");
+  const removed = await reconcileGrowthHitDie(actor, [], definitions);
+  assert(removed.changed && actor.system.attributes.hd.denomination === 6, "Removing Growth should restore the original Hit Die denomination.");
+});
+
+await test("known but ineligible bespoke improvements are not retained on the companion sheet", async () => {
+  const deleted = [];
+  const managedItem = {
+    id: "managed-growth",
+    getFlag(scope, key) {
+      if (scope === "tamer-manager" && key === "managedImprovementId") return "growth-i";
+      return undefined;
+    }
+  };
+  const actor = {
+    items: [managedItem],
+    async deleteEmbeddedDocuments(type, ids) {
+      assert(type === "Item", "Only Item documents should be deleted.");
+      deleted.push(...ids);
+    }
+  };
+  const globalDefinitions = [{ id: "growth-i", name: "Growth I", type: "improvement", treeId: "bespoke-tree", displayOnSheet: true }];
+  const result = await syncImprovementSheetItems(actor, [{ id: "growth-i", count: 1 }], [], globalDefinitions);
+  assert(deleted.includes("managed-growth"), "A known improvement that is no longer eligible must be removed from module-managed sheet display.");
+  assert(result.warnings.length === 0, "A known but ineligible improvement should not be misreported as a missing legacy definition.");
+});
+
+await test("bespoke tree eligibility requires the configured companion identifier to match", () => {
+  settings.set("tamer-manager.companionTrees", {
+    schemaVersion: 1,
+    trees: [{ id: "blue-beetle-tree", name: "Blue Beetle", description: "", companionIdentifier: "khaji-da" }]
+  });
+  settings.set("tamer-manager.companionOptions", {
+    schemaVersion: 1,
+    definitions: [
+      option("toughen-up", { name: "Toughen Up", treeId: null }),
+      option("growth-i", { name: "Growth I", treeId: "blue-beetle-tree" }),
+      option("growth-ii", { name: "Growth II", treeId: "blue-beetle-tree", requirements: { tamerLevel: 1, companionIdentifiers: ["different-companion"] } })
+    ]
+  });
+  const khajiDa = { system: { identifier: "khaji-da" } };
+  const otherCompanion = { system: { identifier: "other-companion" } };
+  const forKhajiDa = CompanionOptions.byType("improvement", { companion: khajiDa }).map(item => item.id);
+  const forOther = CompanionOptions.byType("improvement", { companion: otherCompanion }).map(item => item.id);
+  assert(forKhajiDa.includes("growth-i"), "A matching bespoke companion should receive its configured tree improvements.");
+  assert(!forKhajiDa.includes("growth-ii"), "An option-level companion restriction should further narrow the tree's eligibility.");
+  assert(!forOther.includes("growth-i") && !forOther.includes("growth-ii"), "A mismatched bespoke companion must not receive another tree's improvements.");
+  assert(forOther.includes("toughen-up"), "Universal improvements remain available when the bespoke tree does not match.");
+});
+
+await test("tree store round-trips explicit companion identifiers", async () => {
+  settings.set("tamer-manager.companionOptions", { schemaVersion: 1, definitions: [] });
+  settings.set("tamer-manager.companionTrees", { schemaVersion: 1, trees: [] });
+  await CompanionTreeStore.upsert({
+    id: "blue-beetle-tree",
+    name: "Blue Beetle",
+    description: "Bespoke tree",
+    companionIdentifier: "khaji-da"
+  });
+  const saved = CompanionTreeStore.get("blue-beetle-tree");
+  assert(saved?.companionIdentifier === "khaji-da", "Saving a tree must preserve its companion identifier for eligibility filtering.");
+});
+
+await test("bespoke tree eligibility can match an NPC Actor by its name slug", () => {
+  settings.set("tamer-manager.companionTrees", {
+    schemaVersion: 1,
+    trees: [{ id: "blue-beetle-tree", name: "Blue Beetle", description: "", companionIdentifier: "khaji-da" }]
+  });
+  settings.set("tamer-manager.companionOptions", {
+    schemaVersion: 1,
+    definitions: [option("growth-i", { name: "Growth I", treeId: "blue-beetle-tree" })]
+  });
+  const actorWithoutIdentifier = { name: "Khaji Da", system: { details: {} } };
+  assert(CompanionOptions.byType("improvement", { companion: actorWithoutIdentifier }).some(item => item.id === "growth-i"),
+    "A dnd5e NPC Actor without a dedicated system identifier should match through its normalized name slug.");
+});
+
+await test("name-slug fallback normalizes whitespace without Foundry string extensions", () => {
+  const original = String.prototype.slugify;
+  try {
+    delete String.prototype.slugify;
+    settings.set("tamer-manager.companionTrees", {
+      schemaVersion: 1,
+      trees: [{ id: "blue-beetle-tree", name: "Blue Beetle", description: "", companionIdentifier: "khaji-da" }]
+    });
+    settings.set("tamer-manager.companionOptions", {
+      schemaVersion: 1,
+      definitions: [option("growth-i", { name: "Growth I", treeId: "blue-beetle-tree" })]
+    });
+    const actorWithoutIdentifier = { name: "Khaji Da", system: { details: {} } };
+    assert(CompanionOptions.byType("improvement", { companion: actorWithoutIdentifier }).some(item => item.id === "growth-i"),
+      "The fallback must normalize spaces to hyphens when Foundry's slugify extension is unavailable.");
+  } finally {
+    if (original) String.prototype.slugify = original;
+  }
+});
+
+await test("tree upsert preserves companion identifier on partial update", async () => {
+  settings.set("tamer-manager.companionOptions", { schemaVersion: 1, definitions: [] });
+  settings.set("tamer-manager.companionTrees", { schemaVersion: 1, trees: [] });
+  await CompanionTreeStore.upsert({
+    id: "blue-beetle-tree",
+    name: "Blue Beetle",
+    description: "Bespoke tree",
+    companionIdentifier: "khaji-da"
+  });
+  await CompanionTreeStore.upsert({
+    id: "blue-beetle-tree",
+    name: "Blue Beetle Revised",
+    description: "Updated description"
+  });
+  const saved = CompanionTreeStore.get("blue-beetle-tree");
+  assert(saved?.companionIdentifier === "khaji-da", "A partial tree update must preserve its companion identifier.");
+  assert(saved?.name === "Blue Beetle Revised", "The update must still save fields that were supplied.");
 });
 
 const failed = results.filter(result => !result.passed);

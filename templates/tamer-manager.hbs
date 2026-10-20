@@ -5,15 +5,22 @@
       {{#if hasTamer}}
         <p class="tamer-manager__tamer">Managing companions for <strong>{{tamer.name}}</strong></p>
         <p class="tamer-manager__capacity">POCKET FAMILY <strong>{{companionCount}} / {{#if maxCompanions}}{{maxCompanions}}{{else}}—{{/if}}</strong></p>
+        {{#if hasResources}}
+          <div class="tamer-manager__resources" aria-label="Tamer resources">
+            {{#each resources}}
+              <div class="tamer-manager__resource"><span>{{name}}</span><strong>{{value}} / {{max}}</strong></div>
+            {{/each}}
+          </div>
+        {{/if}}
       {{else}}
         <p class="tamer-manager__tamer">No Tamer selected</p>
       {{/if}}
     </div>
     <div class="tamer-manager__actions">
       {{#if canManage}}
-        <button type="button" data-action="addCompanion"><i class="fa-solid fa-plus"></i> Add Companion</button>
+        <button type="button" data-action="{{#if inSheetTab}}tamerAddCompanion{{else}}addCompanion{{/if}}"><i class="fa-solid fa-plus"></i> Add Companion</button>
       {{/if}}
-      <button type="button" data-action="refresh" title="Refresh companion list" aria-label="Refresh"><i class="fa-solid fa-rotate"></i></button>
+      <button type="button" data-action="{{#if inSheetTab}}tamerRefresh{{else}}refresh{{/if}}" title="Refresh companion list" aria-label="Refresh"><i class="fa-solid fa-rotate"></i></button>
     </div>
   </header>
 
@@ -21,7 +28,7 @@
     {{#if companions.length}}
       <div class="tamer-manager__companions">
         {{#each companions}}
-          <article class="tamer-manager__card {{#unless actorExists}}is-missing{{/unless}}" data-record-id="{{id}}">
+          <article class="tamer-manager__card {{#unless actorExists}}is-missing{{/unless}} {{#if isSummonedBespoke}}is-summoned-bespoke{{/if}}" data-record-id="{{id}}">
             <div class="tamer-manager__portrait-wrap">
               <img class="tamer-manager__portrait" src="{{portrait}}" alt="{{actorName}}" loading="lazy">
             </div>
@@ -48,11 +55,11 @@
                   <strong>{{vesselName}}</strong>
                   <span>{{statusLabel}}</span>
                   <div class="tamer-manager__vessel-actions">
-                    <button type="button" data-action="assignVessel" data-record-id="{{id}}" title="Assign a vessel">
+                    <button type="button" data-action="{{#if inSheetTab}}tamerAssignVessel{{else}}assignVessel{{/if}}" data-record-id="{{id}}" title="Assign a vessel">
                       <i class="fa-solid fa-box"></i> Assign
                     </button>
                     {{#if vesselUuid}}
-                      <button type="button" data-action="clearVessel" data-record-id="{{id}}" title="Clear vessel assignment">
+                      <button type="button" data-action="{{#if inSheetTab}}tamerClearVessel{{else}}clearVessel{{/if}}" data-record-id="{{id}}" title="Clear vessel assignment">
                         <i class="fa-solid fa-xmark"></i> Clear
                       </button>
                     {{/if}}
@@ -70,7 +77,7 @@
                   {{else}}
                     <span>No improvements selected</span>
                   {{/if}}
-                  <button type="button" data-action="manageImprovements" data-record-id="{{id}}" title="Manage companion improvements"><i class="fa-solid fa-list-check"></i> Manage</button>
+                  <button type="button" data-action="{{#if inSheetTab}}tamerManageImprovements{{else}}manageImprovements{{/if}}" data-record-id="{{id}}" title="Manage companion improvements" aria-label="Manage companion improvements"><i class="fa-solid fa-arrow-up-right-from-square"></i><span class="visually-hidden">Manage companion improvements</span></button>
                 </div>
               {{else}}
                 <span class="tamer-manager__missing">Actor reference unavailable — relationship preserved</span>
@@ -79,14 +86,14 @@
             </div>
             <div class="tamer-manager__card-actions">
               {{#if actorExists}}
-                <button type="button" data-action="toggleSummon" data-record-id="{{id}}" title="{{#if isSummoned}}Return companion to storage{{else}}Summon companion to current scene{{/if}}">
+                <button type="button" data-action="{{#if inSheetTab}}tamerToggleSummon{{else}}toggleSummon{{/if}}" data-record-id="{{id}}" title="{{#if isSummoned}}Return companion to storage{{else}}Summon companion to current scene{{/if}}">
                   {{#if isSummoned}}<i class="fa-solid fa-box"></i><span class="visually-hidden">Return to storage</span>{{else}}<i class="fa-solid fa-wand-sparkles"></i><span class="visually-hidden">Summon companion</span>{{/if}}
                 </button>
-                <button type="button" data-action="openCompanion" data-actor-uuid="{{actorUuid}}" title="Open companion sheet">
+                <button type="button" data-action="{{#if inSheetTab}}tamerOpenCompanion{{else}}openCompanion{{/if}}" data-actor-uuid="{{actorUuid}}" title="Open companion sheet">
                   <i class="fa-solid fa-up-right-from-square"></i><span class="visually-hidden">Open companion sheet</span>
                 </button>
               {{/if}}
-              <button type="button" data-action="removeCompanion" data-record-id="{{id}}" title="Unlink companion">
+              <button type="button" data-action="{{#if inSheetTab}}tamerRemoveCompanion{{else}}removeCompanion{{/if}}" data-record-id="{{id}}" title="Unlink companion">
                 <i class="fa-solid fa-link-slash"></i><span class="visually-hidden">Unlink companion</span>
               </button>
             </div>
