@@ -127,7 +127,7 @@ Hooks.once("init", () => {
     CharacterActorSheet.prototype._preparePartContext = async function(partId, context, options) {
       if (partId === "companions") {
         const managerContext = await TamerManager.prototype._prepareContext.call({ tamer: this.actor });
-        return { ...context, ...managerContext };
+        return { ...context, ...managerContext, inSheetTab: true };
       }
       return originalPreparePartContext.call(this, partId, context, options);
     };
@@ -138,14 +138,14 @@ Hooks.once("init", () => {
     };
     const sheetOptions = CharacterActorSheet.DEFAULT_OPTIONS ?? {};
     const managerActions = {
-      refresh: TamerManager._onRefresh,
-      addCompanion: TamerManager._onAddCompanion,
-      removeCompanion: TamerManager._onRemoveCompanion,
-      openCompanion: TamerManager._onOpenCompanion,
-      toggleSummon: TamerManager._onToggleSummon,
-      assignVessel: TamerManager._onAssignVessel,
-      clearVessel: TamerManager._onClearVessel,
-      manageImprovements: TamerManager._onManageImprovements
+      tamerRefresh: TamerManager._onRefresh,
+      tamerAddCompanion: TamerManager._onAddCompanion,
+      tamerRemoveCompanion: TamerManager._onRemoveCompanion,
+      tamerOpenCompanion: TamerManager._onOpenCompanion,
+      tamerToggleSummon: TamerManager._onToggleSummon,
+      tamerAssignVessel: TamerManager._onAssignVessel,
+      tamerClearVessel: TamerManager._onClearVessel,
+      tamerManageImprovements: TamerManager._onManageImprovements
     };
     CharacterActorSheet.DEFAULT_OPTIONS = {
       ...sheetOptions,
