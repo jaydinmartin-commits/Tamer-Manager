@@ -6,6 +6,7 @@ import { CompanionRecord } from "../scripts/data/companion-record.js";
 import { CompanionInitializationApplication } from "../scripts/data/companion-initialization-application.js";
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "../scripts/data/companion-improvement-cost.js";
 import { selectedImprovementDisplay } from "../scripts/data/companion-improvement-display.js";
+import { CompanionOptionDefinition } from "../scripts/data/companion-option-definition.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
 
@@ -368,3 +369,9 @@ await test("initialization recovery repairs a failed relationship write without 
 const failed = results.filter(result => !result.passed);
 globalThis.__TAMER_MANAGER_STORE_TESTS__ = { passed: results.length - failed.length, failed: failed.length, tests: results };
 if (failed.length) throw new Error(JSON.stringify(globalThis.__TAMER_MANAGER_STORE_TESTS__));
+
+await test("option display flags default safely for legacy definitions", () => {
+  const normalized = CompanionOptionDefinition.normalize(option("legacy-display"));
+  assert(normalized.displayOnManager === true, "Legacy options should remain visible on the manager card by default.");
+  assert(normalized.displayOnSheet === false, "Legacy options should not be copied to companion sheets without an explicit opt-in.");
+});

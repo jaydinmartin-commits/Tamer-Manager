@@ -77,7 +77,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         try { actor = await fromUuid(record.actorUuid); }
         catch { actor = null; }
       }
-      const improvementDisplay = selectedImprovementDisplay(record, CompanionOptions.byType("improvement"));
+      const improvementDisplay = selectedImprovementDisplay(record, CompanionOptions.byType("improvement", { companion: actor }).filter(option => option.displayOnManager !== false));
       return {
         ...record,
         actorName: actor?.name ?? record.name ?? "Missing companion Actor",
@@ -339,7 +339,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       ui.notifications.warn("The current Tamer progression does not define an improvement allowance for this companion.");
       return;
     }
-    const definitions = CompanionOptions.byType("improvement");
+    const allDefinitions = CompanionOptions.byType("improvement");
+    const definitions = CompanionOptions.byType("improvement", { companion: actor });
     const savedCounts = new Map();
     for (const value of record.improvements ?? []) {
       const id = typeof value === "string" ? value : String(value?.id ?? "");
@@ -355,7 +356,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const definition = byId.get(id);
       if (definition?.replacesId) effectiveSelectedIds.delete(definition.replacesId);
     }
-    const selectedCount = selectedImprovementSlotCost(record, definitions);
+    const selectedCount = selectedImprovementSlotCost(record, allDefinitions);
     const unknownLegacySelections = [...savedCounts.entries()].filter(([id]) => !byId.has(id));
     if (!definitions.length && !unknownLegacySelections.length) {
       ui.notifications.warn("No companion improvements have been configured by the GM yet.");
@@ -365,7 +366,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const count = savedCounts.get(definition.id) ?? 0;
       const isSelected = count > 0;
       const prerequisitesMet = (definition.prerequisiteIds ?? []).every(id => effectiveSelectedIds.has(id));
-      const levelMet = CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record });
+      const levelMet = CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: actor });
       const replacementMet = !definition.replacesId || effectiveSelectedIds.has(definition.replacesId);
       const replacedCost = definition.replacesId && effectiveSelectedIds.has(definition.replacesId)
         ? (Number(byId.get(definition.replacesId)?.slotCost) || 0) * (savedCounts.get(definition.replacesId) ?? 1)
@@ -425,7 +426,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     const resultDefinitions = result.map(value => byId.get(value.id));
     const effectiveIds = new Set([...resultIds].filter(id => !resultDefinitions.some(definition => definition?.replacesId === id)));
-    const effectiveCount = selectedImprovementSlotCost({ improvements: result }, definitions);
+    const effectiveCount = selectedImprovementSlotCost({ improvements: result }, allDefinitions);
     if (effectiveCount > maximum) {
       ui.notifications.warn(`This companion can have at most ${maximum} effective improvement slots at the Tamer's current level.`);
       return;
