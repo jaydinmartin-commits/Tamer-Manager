@@ -10,6 +10,11 @@ import CompendiumBrowser from "systems/dnd5e/module/applications/compendium-brow
 
 const MODULE_ID = "tamer-manager";
 
+// The dnd5e v6 browser does not expose a per-instance pack allowlist. Scope a
+// fetch filter to the lifetime of this picker so its native UI only lists the
+// GM-enabled Actor packs. The guard prevents overlapping Tamer pickers.
+let companionPickerActive = false;
+
 
 const ADD_REASONS = {
   "missing-tamer-or-companion": "A Tamer and companion Actor are required.",
@@ -199,14 +204,40 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       ui.notifications.error("The D&D 5e Compendium Browser is unavailable. Confirm that dnd5e v6 has finished initializing.");
       return null;
     }
-    const uuid = await CompendiumBrowser.selectOne({
-      tab: "monsters",
-      filters: {
-        locked: { documentClass: "Actor", types: new Set(["npc"]) },
-        initial: { documentClass: "Actor", types: new Set(["npc"]) }
-      },
-      selection: { min: 1, max: 1 }
-    });
+    if (companionPickerActive) {
+      ui.notifications.warn("The companion picker is already open.");
+      return null;
+    }
+
+    // dnd5e v6's native browser fetches from all enabled source packs and has no
+    // per-window collection allowlist. Filter its Actor results for this picker
+    // only, retaining the exact native D&D 5e interface and all native filters.
+    const originalFetch = CompendiumBrowser.fetch;
+    companionPickerActive = true;
+    let uuid;
+    try {
+      CompendiumBrowser.fetch = async function(documentClass, options = {}) {
+        const results = await originalFetch.call(this, documentClass, options);
+        if (documentClass?.metadata?.name !== "Actor") return results;
+        return results.filter(entry => {
+          const entryUuid = String(entry?.uuid ?? "");
+          return [...allowedCollections].some(collection =>
+            entryUuid.startsWith(`Compendium.${collection}.`)
+          );
+        });
+      };
+      uuid = await CompendiumBrowser.selectOne({
+        tab: "monsters",
+        filters: {
+          locked: { documentClass: "Actor", types: new Set(["npc"]) },
+          initial: { documentClass: "Actor", types: new Set(["npc"]) }
+        },
+        selection: { min: 1, max: 1 }
+      });
+    } finally {
+      CompendiumBrowser.fetch = originalFetch;
+      companionPickerActive = false;
+    }
     if (!uuid) return null;
 
     const collection = [...allowedCollections].find(name => uuid.startsWith(`Compendium.${name}.`));
