@@ -68,7 +68,8 @@ export const CompanionOptions = Object.freeze({
       }
       if (!trees.has(String(option.treeId)) || !identifier) return false;
       if (String(option.treeId).trim().toLowerCase() === identifier) return true;
-      return companionMatches(companion, option.requirements);
+      const identifiers = option.requirements?.companionIdentifiers ?? [];
+      return identifiers.length > 0 && companionMatches(companion, option.requirements);
     });
   },
 
