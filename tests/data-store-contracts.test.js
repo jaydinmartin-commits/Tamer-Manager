@@ -59,6 +59,8 @@ await test("improvement slot accounting honors costs, repeatable ranks, and repl
   ];
   assert(selectedImprovementSlotCost({ improvements: [{ id: "growth-ii", count: 1 }, { id: "growth-i", count: 1 }] }, definitions) === 2,
     "An upgrade should replace the lower-tier cost instead of stacking both.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "growth-ii", count: 1 }] }, definitions) === 2,
+    "A saved upgrade without its replacement target must still consume its full configured cost.");
   assert(selectedImprovementSlotCost({ improvements: [{ id: "toughen-up", count: 3 }] }, definitions) === 3,
     "Repeatable rank count should multiply the configured slot cost.");
   assert(selectedImprovementSlotCost({ improvements: ["growth-i", { id: "toughen-up", rank: 2 }] }, definitions) === 3,
@@ -76,7 +78,7 @@ await test("improvement slot accounting honors costs, repeatable ranks, and repl
   assert(additionalImprovementSlotCost(2, 1) === 1,
     "An upgrade should consume only the difference between its cost and the replaced improvement.");
   assert(additionalImprovementSlotCost(1, 2) === 0,
-    "Replacing an improvement with a higher-cost predecessor should not create negative slot usage.");
+    "A replacement credit larger than the new cost must not create negative slot usage.");
   assert(additionalImprovementSlotCost(2, 0) === 2,
     "An improvement without a replacement should consume its full configured cost.");
 });
