@@ -4,8 +4,9 @@ const MODULE_ID = "tamer-manager";
  * Synchronize only module-owned improvement Items. Unrelated items and manually
  * created copies are never modified or deleted by this reconciliation.
  */
-export async function syncImprovementSheetItems(actor, selections, definitions) {
+export async function syncImprovementSheetItems(actor, selections, definitions, allDefinitions = definitions) {
   const byId = new Map(definitions.map(definition => [String(definition.id), definition]));
+  const allById = new Map(allDefinitions.map(definition => [String(definition.id), definition]));
   const counts = new Map();
   for (const raw of selections ?? []) {
     const id = typeof raw === "string" ? raw : String(raw?.id ?? "");
@@ -64,7 +65,7 @@ export async function syncImprovementSheetItems(actor, selections, definitions) 
   // safely reconcile. It becomes removable again once its selection is removed.
   const desiredIds = new Set([
     ...desired.keys(),
-    ...[...counts.keys()].filter(id => !byId.has(id))
+    ...[...counts.keys()].filter(id => !allById.has(id))
   ]);
   const removals = existing.filter(item => !desiredIds.has(String(item.getFlag(MODULE_ID, "managedImprovementId"))));
   if (removals.length) {

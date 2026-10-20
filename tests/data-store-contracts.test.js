@@ -7,7 +7,7 @@ import { CompanionInitializationApplication } from "../scripts/data/companion-in
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "../scripts/data/companion-improvement-cost.js";
 import { selectedImprovementDisplay } from "../scripts/data/companion-improvement-display.js";
 import { CompanionOptionDefinition } from "../scripts/data/companion-option-definition.js";
-import { reconcileGrowthHitDie } from "../scripts/data/companion-improvement-sheet-sync.js";
+import { reconcileGrowthHitDie, syncImprovementSheetItems } from "../scripts/data/companion-improvement-sheet-sync.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
 
@@ -409,4 +409,26 @@ await test("growth hit die reconciliation is reversible and idempotent", async (
   assert(!repeated.changed && actor.system.attributes.hd.denomination === 10, "Saving the same Growth selection twice should not reapply or lose the original denomination.");
   const removed = await reconcileGrowthHitDie(actor, [], definitions);
   assert(removed.changed && actor.system.attributes.hd.denomination === 6, "Removing Growth should restore the original Hit Die denomination.");
+});
+
+await test("known but ineligible bespoke improvements are not retained on the companion sheet", async () => {
+  const deleted = [];
+  const managedItem = {
+    id: "managed-growth",
+    getFlag(scope, key) {
+      if (scope === "tamer-manager" && key === "managedImprovementId") return "growth-i";
+      return undefined;
+    }
+  };
+  const actor = {
+    items: [managedItem],
+    async deleteEmbeddedDocuments(type, ids) {
+      assert(type === "Item", "Only Item documents should be deleted.");
+      deleted.push(...ids);
+    }
+  };
+  const globalDefinitions = [{ id: "growth-i", name: "Growth I", type: "improvement", treeId: "bespoke-tree", displayOnSheet: true }];
+  const result = await syncImprovementSheetItems(actor, [{ id: "growth-i", count: 1 }], [], globalDefinitions);
+  assert(deleted.includes("managed-growth"), "A known improvement that is no longer eligible must be removed from module-managed sheet display.");
+  assert(result.warnings.length === 0, "A known but ineligible improvement should not be misreported as a missing legacy definition.");
 });

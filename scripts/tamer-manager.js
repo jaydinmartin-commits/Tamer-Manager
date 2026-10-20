@@ -499,7 +499,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         console.error("Tamer Manager | Growth Hit Die reconciliation failed.", error);
         warnings.push("Growth Hit Die size could not be reconciled. Reopen and save improvements to retry.");
       }
-      const sheetSync = await syncImprovementSheetItems(actor, result, allDefinitions);
+      const sheetSync = await syncImprovementSheetItems(actor, result, definitions, allDefinitions);
       warnings.push(...sheetSync.warnings);
       if (warnings.length) {
         ui.notifications.warn("Selections saved, but some mechanics or sheet items need attention: " + warnings.join(" "));
