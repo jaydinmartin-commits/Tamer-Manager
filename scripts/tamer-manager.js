@@ -191,11 +191,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return null;
     }
 
-    // Use the D&D 5e native Compendium Browser used by the system's transformation
-    // workflow rather than maintaining a parallel custom Actor-selection dialog.
-    // D&D 5e v6 exports this browser from its system namespace; it is not a
-    // standalone global named CompendiumBrowser.
-    const CompendiumBrowser = globalThis.dnd5e?.applications?.CompendiumBrowser;
+    // Use the native D&D 5e v6 Compendium Browser imported from its system module.
     if (typeof CompendiumBrowser?.selectOne !== "function") {
       ui.notifications.error("The D&D 5e Compendium Browser is unavailable. Confirm that dnd5e v6 has finished initializing.");
       return null;

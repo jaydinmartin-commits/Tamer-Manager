@@ -76,8 +76,18 @@ export const CompanionTreeStore = Object.freeze({
   async upsert(tree) {
     if (!tree?.id) throw new Error("A companion tree ID is required.");
     const trees = this.list();
-    const normalized = { ...clone(tree), id: String(tree.id), name: String(tree.name ?? "").trim(), description: String(tree.description ?? "") };
-    const index = trees.findIndex(item => item.id === normalized.id);
+    const id = String(tree.id);
+    const index = trees.findIndex(item => item.id === id);
+    const existing = index < 0 ? {} : trees[index];
+    // Older edit forms may omit the newer identifier field; preserve it on partial updates.
+    const normalized = {
+      ...clone(existing),
+      ...clone(tree),
+      id,
+      name: String(tree.name ?? existing.name ?? "").trim(),
+      description: String(tree.description ?? existing.description ?? ""),
+      companionIdentifier: String(tree.companionIdentifier ?? existing.companionIdentifier ?? "").trim()
+    };
     if (index < 0) trees.push(normalized); else trees[index] = normalized;
     return this.write(trees);
   },

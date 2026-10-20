@@ -503,3 +503,22 @@ await test("name-slug fallback normalizes whitespace without Foundry string exte
     if (original) String.prototype.slugify = original;
   }
 });
+
+await test("tree upsert preserves companion identifier on partial update", async () => {
+  settings.set("tamer-manager.companionOptions", { schemaVersion: 1, definitions: [] });
+  settings.set("tamer-manager.companionTrees", { schemaVersion: 1, trees: [] });
+  await CompanionTreeStore.upsert({
+    id: "blue-beetle-tree",
+    name: "Blue Beetle",
+    description: "Bespoke tree",
+    companionIdentifier: "khaji-da"
+  });
+  await CompanionTreeStore.upsert({
+    id: "blue-beetle-tree",
+    name: "Blue Beetle Revised",
+    description: "Updated description"
+  });
+  const saved = CompanionTreeStore.get("blue-beetle-tree");
+  assert(saved?.companionIdentifier === "khaji-da", "A partial tree update must preserve its companion identifier.");
+  assert(saved?.name === "Blue Beetle Revised", "The update must still save fields that were supplied.");
+});
