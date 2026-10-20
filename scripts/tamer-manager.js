@@ -371,7 +371,6 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
     const resultDefinitions = result.map(value => byId.get(value.id));
-    const replacedIds = new Set(resultDefinitions.map(definition => definition?.replacesId).filter(Boolean));
     const effectiveIds = new Set([...resultIds].filter(id => !resultDefinitions.some(definition => definition?.replacesId === id)));
     const effectiveCount = selectedImprovementSlotCost({ improvements: result }, definitions);
     if (effectiveCount > maximum) {
