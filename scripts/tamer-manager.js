@@ -4,6 +4,7 @@ import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "./data/companion-improvement-cost.js";
 import { selectedImprovementDisplay } from "./data/companion-improvement-display.js";
+import CompendiumBrowser from "systems/dnd5e/module/applications/compendium-browser.mjs";
 
 const MODULE_ID = "tamer-manager";
 
@@ -163,24 +164,59 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static async chooseActor(tamer) {
     if (!tamer || !TamerRecords.isTamer(tamer)) return null;
-    const existing = new Set(TamerRecords.read(tamer).map(record => record.actorUuid));
-    const candidates = (game.actors?.contents ?? []).filter(actor => actor !== tamer && actor.type === "npc" && !existing.has(actor.uuid));
-    if (!candidates.length) {
-      ui.notifications.warn("No eligible unregistered Actor documents are available to add.");
+    const configured = game.settings.get(MODULE_ID, "companionCompendiums") ?? [];
+    const allowedCollections = new Set(configured.filter(collection =>
+      game.packs?.get(collection)?.documentName === "Actor" &&
+      game.packs?.get(collection)?.visible
+    ));
+    if (!allowedCollections.size) {
+      ui.notifications.warn("No visible Actor compendiums are configured. Ask the GM to use Tamer Manager → Configure Compendiums.");
       return null;
     }
-    const options = candidates.map(actor =>
-      `<option value="${actor.uuid}">${foundry.utils.escapeHTML(actor.name)}</option>`).join("");
-    const result = await foundry.applications.api.DialogV2.wait({
-      window: { title: "Add Companion" },
-      content: `<form><label>Companion <select name="actor">${options}</select></label></form>`,
-      buttons: [
-        { action: "select", label: "Add", default: true,
-          callback: (event, button) => button.form.elements.actor.value },
-        { action: "cancel", label: "Cancel" }
-      ]
+
+    // Use the D&D 5e native Compendium Browser used by the system's transformation
+    // workflow rather than maintaining a parallel custom Actor-selection dialog.
+    const uuid = await CompendiumBrowser.selectOne({
+      tab: "monsters",
+      filters: {
+        locked: { documentClass: "Actor", types: new Set(["npc"]) },
+        initial: { documentClass: "Actor", types: new Set(["npc"]) }
+      },
+      selection: { min: 1, max: 1 }
     });
-    return result ? fromUuid(result).catch(() => null) : null;
+    if (!uuid) return null;
+
+    const collection = [...allowedCollections].find(name => uuid.startsWith(`Compendium.${name}.`));
+    if (!collection) {
+      ui.notifications.warn("That Actor is not from a compendium enabled by the GM for Tamer Manager.");
+      return null;
+    }
+    const source = await fromUuid(uuid).catch(() => null);
+    if (!source || source.type !== "npc") {
+      ui.notifications.warn("Choose an NPC Actor from an enabled compendium.");
+      return null;
+    }
+    const existingUuids = new Set(TamerRecords.read(tamer).map(record => record.actorUuid));
+    if ([...existingUuids].some(existingUuid => {
+      const existingActor = game.actors?.get(existingUuid.split(".").at(-1));
+      return existingActor?.name === source.name;
+    })) {
+      ui.notifications.warn("A companion with that name is already bonded. Rename the source Actor or unlink the existing companion first.");
+      return null;
+    }
+
+    // Compendium documents must never be modified in place. Create a world Actor
+    // copy before initialization, then let the existing initialization/recovery
+    // contract manage the world document as it would a manually created NPC.
+    const data = source.toObject();
+    delete data._id;
+    data.folder = null;
+    const companion = await Actor.create(data);
+    if (!companion) {
+      ui.notifications.error("Foundry could not create a world Actor from the selected compendium entry.");
+      return null;
+    }
+    return companion;
   }
 
   static async _onRefresh() { await this.render({ force: true }); }
