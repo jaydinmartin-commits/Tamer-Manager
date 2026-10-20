@@ -71,3 +71,66 @@ export async function syncImprovementSheetItems(actor, selections, definitions) 
   }
   return { warnings };
 }
+
+
+/**
+ * Keep the companion's Hit Die denomination aligned with its selected Growth
+ * improvement. Size, attacks, and all other Growth effects remain the feature's
+ * responsibility. The original die size is tracked so deselection can restore
+ * it without overwriting a later manual change to the Actor.
+ */
+export async function reconcileGrowthHitDie(actor, selections, definitions) {
+  const byId = new Map(definitions.map(definition => [String(definition.id), definition]));
+  const selectedIds = new Set((selections ?? []).map(raw =>
+    typeof raw === "string" ? raw : String(raw?.id ?? "")
+  ).filter(Boolean));
+  const growthRank = value => {
+    const normalized = String(value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const match = normalized.match(/growth(vi|iv|iii|ii|i|[1-6])$/);
+    if (!match) return 0;
+    const rank = match[1];
+    return ({ i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6 })[rank] ?? Number(rank) ?? 0;
+  };
+  let highestRank = 0;
+  for (const id of selectedIds) {
+    const definition = byId.get(id);
+    if (!definition || definition.type !== "improvement") continue;
+    if (!definition.treeId && !(definition.requirements?.companionIdentifiers?.length)) continue;
+    highestRank = Math.max(highestRank, growthRank(definition.id), growthRank(definition.name));
+  }
+
+  const denomination = Number(actor?.system?.attributes?.hd?.denomination);
+  if (!Number.isInteger(denomination) || denomination < 2) {
+    return { changed: false, warning: "Growth Hit Die size could not be reconciled because the Actor's Hit Die denomination is invalid." };
+  }
+
+  const previous = actor.getFlag?.(MODULE_ID, "growthHitDieState") ?? null;
+  if (highestRank > 0) {
+    const target = highestRank === 1 ? 6 : highestRank === 2 ? 8 : highestRank === 3 ? 10 : 12;
+    const baseDenomination = Number.isInteger(previous?.baseDenomination) ? previous.baseDenomination : denomination;
+    const state = { baseDenomination, appliedDenomination: target, rank: highestRank };
+    if (denomination === target && previous?.baseDenomination === baseDenomination && previous?.appliedDenomination === target && previous?.rank === highestRank) {
+      return { changed: false, warning: null };
+    }
+    await actor.update({
+      "system.attributes.hd.denomination": target,
+      ["flags." + MODULE_ID + ".growthHitDieState"]: state
+    });
+    const verified = Number(actor.system?.attributes?.hd?.denomination) === target;
+    return { changed: verified, warning: verified ? null : "Growth Hit Die size could not be verified after the Actor update." };
+  }
+
+  if (!previous) return { changed: false, warning: null };
+  if (denomination === Number(previous.appliedDenomination)) {
+    await actor.update({
+      "system.attributes.hd.denomination": Number(previous.baseDenomination),
+      ["flags." + MODULE_ID + ".-=growthHitDieState"]: null
+    });
+    const verified = Number(actor.system?.attributes?.hd?.denomination) === Number(previous.baseDenomination);
+    return { changed: verified, warning: verified ? null : "The original Hit Die size could not be restored after Growth was removed." };
+  }
+  // A GM/user changed the denomination after Growth was applied. Preserve that
+  // deliberate edit rather than restoring a stale value over it.
+  await actor.unsetFlag?.(MODULE_ID, "growthHitDieState");
+  return { changed: false, warning: null };
+}
