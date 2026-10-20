@@ -1,6 +1,7 @@
 import { TamerManager } from "./tamer-manager.js";
 import { TamerDevelopmentPanel } from "./tamer-development-panel.js";
 import { TamerConfiguration } from "./tamer-configuration.js";
+import { TamerTreeConfiguration } from "./tamer-tree-configuration.js";
 import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptionDefinition } from "./data/companion-option-definition.js";
 import { CompanionOptionStore } from "./data/companion-option-store.js";
@@ -54,6 +55,15 @@ Hooks.once("init", () => {
     restricted: true
   });
 
+  game.settings.registerMenu(MODULE_ID, "companionTreesConfig", {
+    name: "Bespoke Companion Trees",
+    label: "Manage Companion Trees",
+    hint: "Create and manage named improvement trees for bespoke companions.",
+    icon: "fa-solid fa-sitemap",
+    type: TamerTreeConfiguration,
+    restricted: true
+  });
+
   // Foundry v14 dispatches ApplicationV2 header controls through class-specific hooks.
   // D&D 5e v6's CharacterActorSheet extends BaseActorSheet, which in turn extends
   // foundry.applications.sheets.ActorSheetV2. Register the concrete system class hook
@@ -77,6 +87,7 @@ Hooks.once("init", () => {
     TamerManager,
     TamerDevelopmentPanel,
     TamerConfiguration,
+    TamerTreeConfiguration,
     TamerRecords,
     CompanionOptionDefinition,
     CompanionOptionStore,

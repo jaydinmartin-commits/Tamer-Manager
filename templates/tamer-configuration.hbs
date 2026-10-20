@@ -6,6 +6,7 @@
     </div>
     <div class="tamer-manager__actions">
       <button type="button" data-action="newOption"><i class="fa-solid fa-plus"></i> New Option</button>
+      <button type="button" data-action="manageTrees"><i class="fa-solid fa-sitemap"></i> Manage Trees</button>
       <button type="button" data-action="refresh" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
     </div>
   </header>
@@ -42,7 +43,7 @@
           <label><span>Tamer Level</span><input name="tamerLevel" type="number" min="0" step="1" value="{{draft.tamerLevel}}"></label>
           <label><span>Slot Cost</span><input name="slotCost" type="number" min="0" step="1" value="{{draft.slotCost}}"></label>
           <label><span>Point Cost</span><input name="pointCost" type="number" min="0" step="1" value="{{draft.pointCost}}"></label>
-          <label><span>Tree ID <small>(optional)</small></span><input name="treeId" type="text" value="{{draft.treeId}}"></label>
+          <label><span>Companion Tree <small>(optional)</small></span><select name="treeId"><option value="">Universal / no specific tree</option>{{#each trees}}<option value="{{id}}" {{#if (eq id ../draft.treeId)}}selected{{/if}}>{{name}} ({{id}})</option>{{/each}}</select><small>Create bespoke trees with the separate “Manage Companion Trees” setting.</small></label>
           <label class="tamer-manager-config__wide"><span>Companion Identifiers <small>(comma-separated)</small></span><input name="companionIdentifiers" type="text" value="{{draft.companionIdentifiers}}"></label>
           <label class="tamer-manager-config__wide"><span>Prerequisite IDs <small>(comma-separated)</small></span><input name="prerequisiteIds" type="text" value="{{draft.prerequisiteIds}}"></label>
           <label><span>Replaces ID <small>(optional)</small></span><input name="replacesId" type="text" value="{{draft.replacesId}}"></label>

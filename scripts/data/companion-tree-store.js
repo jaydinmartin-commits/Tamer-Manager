@@ -45,7 +45,9 @@ function migrate(value, definitions) {
     }
     return { ...clone(tree), id: String(tree.id), name: String(tree.name ?? ""), description: String(tree.description ?? "") };
   });
-  validateTrees(trees, definitions);
+  // Read existing trees even if an option has a stale treeId. The GM must be able
+  // to open configuration and either recreate the missing tree or repair the option.
+  validateTrees(trees, []);
   return { schemaVersion: SCHEMA_VERSION, trees };
 }
 
