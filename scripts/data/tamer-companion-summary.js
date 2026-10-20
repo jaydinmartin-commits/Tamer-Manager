@@ -165,9 +165,9 @@ export const TamerCompanionSummary = Object.freeze({
   canTame(tamer, companion) {
     const summary = this.forTamer(tamer);
     const cr = getCompanionCR(companion);
+    const rawSize = companion?.system?.traits?.size;
     const size = normalizeSize(
-      companion?.system?.traits?.size ??
-      companion?.system?.traits?.size?.value ??
+      (typeof rawSize === "string" ? rawSize : rawSize?.value) ??
       companion?.system?.details?.size
     );
 
