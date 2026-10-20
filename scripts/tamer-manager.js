@@ -232,7 +232,9 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
           );
         };
         try {
-          return originalFetch.call(this, documentClass, options);
+          // Await the index operation: its source-collation call happens during
+          // this asynchronous work, not synchronously at invocation time.
+          return await originalFetch.call(this, documentClass, options);
         } finally {
           CompendiumBrowserSettingsConfig.collateSources = originalCollateSources;
         }
