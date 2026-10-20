@@ -7,6 +7,7 @@ import { CompanionInitializationApplication } from "../scripts/data/companion-in
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "../scripts/data/companion-improvement-cost.js";
 import { selectedImprovementDisplay } from "../scripts/data/companion-improvement-display.js";
 import { CompanionOptionDefinition } from "../scripts/data/companion-option-definition.js";
+import { reconcileGrowthHitDie } from "../scripts/data/companion-improvement-sheet-sync.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
 
@@ -374,4 +375,38 @@ await test("option display flags default safely for legacy definitions", () => {
   const normalized = CompanionOptionDefinition.normalize(option("legacy-display"));
   assert(normalized.displayOnManager === true, "Legacy options should remain visible on the manager card by default.");
   assert(normalized.displayOnSheet === false, "Legacy options should not be copied to companion sheets without an explicit opt-in.");
+});
+
+await test("growth hit die reconciliation is reversible and idempotent", async () => {
+  const flags = {};
+  const actor = {
+    system: { attributes: { hd: { denomination: 6 } } },
+    getFlag(scope, key) { return flags[scope]?.[key]; },
+    async update(changes) {
+      for (const [key, value] of Object.entries(changes)) {
+        if (key === "system.attributes.hd.denomination") this.system.attributes.hd.denomination = value;
+        else if (key === "flags.tamer-manager.growthHitDieState") {
+          flags["tamer-manager"] ??= {};
+          flags["tamer-manager"].growthHitDieState = structuredClone(value);
+        } else if (key === "flags.tamer-manager.-=growthHitDieState") {
+          if (flags["tamer-manager"]) delete flags["tamer-manager"].growthHitDieState;
+        }
+      }
+    },
+    async unsetFlag(scope, key) { if (flags[scope]) delete flags[scope][key]; }
+  };
+  const definitions = [
+    option("growth-i", { treeId: "tree-a" }),
+    option("growth-ii", { treeId: "tree-a" }),
+    option("growth-iii", { treeId: "tree-a" }),
+    option("growth-iv", { treeId: "tree-a" })
+  ];
+  const first = await reconcileGrowthHitDie(actor, [{ id: "growth-ii", count: 1 }], definitions);
+  assert(first.changed && actor.system.attributes.hd.denomination === 8, "Growth II should set the Hit Die denomination to d8.");
+  const upgraded = await reconcileGrowthHitDie(actor, [{ id: "growth-iii", count: 1 }], definitions);
+  assert(upgraded.changed && actor.system.attributes.hd.denomination === 10, "Growth III should upgrade the Hit Die denomination to d10.");
+  const repeated = await reconcileGrowthHitDie(actor, [{ id: "growth-iii", count: 1 }], definitions);
+  assert(!repeated.changed && actor.system.attributes.hd.denomination === 10, "Saving the same Growth selection twice should not reapply or lose the original denomination.");
+  const removed = await reconcileGrowthHitDie(actor, [], definitions);
+  assert(removed.changed && actor.system.attributes.hd.denomination === 6, "Removing Growth should restore the original Hit Die denomination.");
 });
