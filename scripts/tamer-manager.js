@@ -227,9 +227,15 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         // keeps unauthorized entries out of the browser result pipeline).
         const originalCollateSources = CompendiumBrowserSettingsConfig.collateSources;
         CompendiumBrowserSettingsConfig.collateSources = function() {
-          return new Set(
-            [...originalCollateSources.call(this)].filter(collection => allowedCollections.has(collection))
+          const nativeSources = [...originalCollateSources.call(this)];
+          // Preserve the system's normal Item sources for browser internals, but
+          // replace its Actor-source list with the GM's explicit Tamer Manager
+          // allowlist. This setting must work independently of global dnd5e
+          // browser source preferences.
+          const itemSources = nativeSources.filter(collection =>
+            game.packs.get(collection)?.documentName !== "Actor"
           );
+          return new Set([...itemSources, ...allowedCollections]);
         };
         try {
           // Await the index operation: its source-collation call happens during
