@@ -217,7 +217,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     companionPickerActive = true;
     let uuid;
     try {
-      CompendiumBrowser.fetch = function(documentClass, options = {}) {
+      CompendiumBrowser.fetch = async function(documentClass, options = {}) {
         if (documentClass !== CONFIG.Actor.documentClass) {
           return originalFetch.call(this, documentClass, options);
         }
