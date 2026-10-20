@@ -59,7 +59,13 @@ export async function syncImprovementSheetItems(actor, selections, definitions) 
     }
   }
 
-  const desiredIds = new Set(desired.keys());
+  // If a selected legacy improvement no longer has a configured definition,
+  // preserve its existing managed Item instead of deleting content we cannot
+  // safely reconcile. It becomes removable again once its selection is removed.
+  const desiredIds = new Set([
+    ...desired.keys(),
+    ...[...counts.keys()].filter(id => !byId.has(id))
+  ]);
   const removals = existing.filter(item => !desiredIds.has(String(item.getFlag(MODULE_ID, "managedImprovementId"))));
   if (removals.length) {
     try {
