@@ -218,7 +218,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     try {
       CompendiumBrowser.fetch = async function(documentClass, options = {}) {
         const results = await originalFetch.call(this, documentClass, options);
-        if (documentClass?.metadata?.name !== "Actor") return results;
+        if (documentClass !== CONFIG.Actor.documentClass) return results;
         return results.filter(entry => {
           const entryUuid = String(entry?.uuid ?? "");
           return [...allowedCollections].some(collection =>
