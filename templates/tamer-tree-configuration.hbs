@@ -37,7 +37,7 @@
         <div class="tamer-manager-config__grid">
           <label><span>Tree ID</span><input name="id" type="text" value="{{draft.id}}" {{#if editingId}}readonly{{/if}} placeholder="e.g. khaji-da" required></label>
           <label><span>Tree Name</span><input name="name" type="text" value="{{draft.name}}" placeholder="e.g. Khaji Da" required></label>
-          <label><span>Bespoke Companion Identifier</span><input name="companionIdentifier" type="text" value="{{draft.companionIdentifier}}" placeholder="e.g. khaji-da" required><small>Must match the companion Actor's system identifier. Existing trees with a blank value use Tree ID as the identifier.</small></label>
+          <label><span>Bespoke Companion Identifier</span><input name="companionIdentifier" type="text" value="{{draft.companionIdentifier}}" placeholder="e.g. khaji-da" required><small>Match the Actor's tamer-manager companion identifier flag or its name slug (for example, “Khaji Da” matches “khaji-da”). Existing trees with a blank value use Tree ID as the identifier.</small></label>
           <label class="tamer-manager-config__wide"><span>Description</span><textarea name="description" rows="5" placeholder="Describe which bespoke companion this tree belongs to and its theme.">{{draft.description}}</textarea></label>
         </div>
         <footer class="tamer-manager-config__footer"><span>After creating a tree, assign its ID to improvement definitions in Companion Options.</span><button type="button" data-action="saveTree"><i class="fa-solid fa-floppy-disk"></i> Save Tree</button></footer>

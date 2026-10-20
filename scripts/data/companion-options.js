@@ -26,9 +26,19 @@ function getTamerLevel(actor) {
 }
 
 function companionIdentifier(companion) {
-  return String(companion?.system?.identifier ?? companion?.system?.details?.identifier ??
-    companion?.flags?.["tamer-manager"]?.companionIdentifier ?? companion?.companionIdentifier ?? "")
-    .trim().toLowerCase();
+  const explicit = companion?.flags?.["tamer-manager"]?.companionIdentifier ??
+    companion?.system?.identifier ?? companion?.system?.details?.identifier ??
+    companion?.companionIdentifier;
+  if (String(explicit ?? "").trim()) return String(explicit).trim().toLowerCase();
+  // NPC Actors in dnd5e v6 do not consistently expose a dedicated identifier
+  // field. Use the Actor name's Foundry slug as a deterministic fallback so
+  // common bespoke names (e.g. "Khaji Da") match the configured tree identifier.
+  try {
+    const slug = String(companion?.name ?? "").slugify({ strict: true });
+    return slug.trim().toLowerCase();
+  } catch {
+    return String(companion?.name ?? "").trim().toLowerCase().replace(/\\s+/g, "-");
+  }
 }
 function companionMatches(companion, requirements) {
   const identifiers = requirements.companionIdentifiers ?? [];

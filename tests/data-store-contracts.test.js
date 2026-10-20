@@ -469,3 +469,17 @@ await test("tree store round-trips explicit companion identifiers", async () => 
   const saved = CompanionTreeStore.get("blue-beetle-tree");
   assert(saved?.companionIdentifier === "khaji-da", "Saving a tree must preserve its companion identifier for eligibility filtering.");
 });
+
+await test("bespoke tree eligibility can match an NPC Actor by its name slug", () => {
+  settings.set("tamer-manager.companionTrees", {
+    schemaVersion: 1,
+    trees: [{ id: "blue-beetle-tree", name: "Blue Beetle", description: "", companionIdentifier: "khaji-da" }]
+  });
+  settings.set("tamer-manager.companionOptions", {
+    schemaVersion: 1,
+    definitions: [option("growth-i", { name: "Growth I", treeId: "blue-beetle-tree" })]
+  });
+  const actorWithoutIdentifier = { name: "Khaji Da", system: { details: {} } };
+  assert(CompanionOptions.byType("improvement", { companion: actorWithoutIdentifier }).some(item => item.id === "growth-i"),
+    "A dnd5e NPC Actor without a dedicated system identifier should match through its normalized name slug.");
+});
