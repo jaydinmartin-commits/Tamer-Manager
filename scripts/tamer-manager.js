@@ -198,21 +198,24 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return null;
     }
 
-    // Load the system browser only when the GM opens the picker. A system-path
-    // mismatch must never prevent module settings, API, or manager initialization.
-    let CompendiumBrowser;
-    let CompendiumBrowserSettingsConfig;
-    try {
-      ({ default: CompendiumBrowser } = await import("/systems/dnd5e/module/applications/compendium-browser.mjs"));
-      ({ default: CompendiumBrowserSettingsConfig } = await import("/systems/dnd5e/module/applications/settings/compendium-browser-settings.mjs"));
-    } catch (error) {
-      console.error("Tamer Manager | Could not load the D&D 5e Compendium Browser for Add Companion.", error);
-      ui.notifications.error("Tamer Manager loaded, but the D&D 5e Compendium Browser could not be loaded. Confirm D&D 5e v6 is active and fully initialized.");
-      return null;
-    }
+    // D&D 5e v6 exports its applications through the initialized system API.
+    // Do not dynamically import internal system files: Foundry installations may
+    // not serve those source paths directly, even when the browser is available.
+    const applications = game.dnd5e?.applications ?? globalThis.dnd5e?.applications;
+    const CompendiumBrowser = applications?.CompendiumBrowser;
+    const CompendiumBrowserSettingsConfig = applications?.settings?.CompendiumBrowserSettingsConfig;
     if (typeof CompendiumBrowser?.selectOne !== "function" ||
         typeof CompendiumBrowserSettingsConfig?.collateSources !== "function") {
-      ui.notifications.error("The D&D 5e Compendium Browser API is unavailable. Confirm that dnd5e v6 has finished initializing.");
+      console.error("Tamer Manager | D&D 5e Compendium Browser exports unavailable.", {
+        systemId: game.system?.id,
+        systemVersion: game.system?.version,
+        applicationsAvailable: Boolean(applications),
+        browserAvailable: Boolean(CompendiumBrowser),
+        browserSelectOneAvailable: typeof CompendiumBrowser?.selectOne === "function",
+        sourceConfigAvailable: Boolean(CompendiumBrowserSettingsConfig),
+        collateSourcesAvailable: typeof CompendiumBrowserSettingsConfig?.collateSources === "function"
+      });
+      ui.notifications.error("Tamer Manager could not find the initialized D&D 5e Compendium Browser API. Confirm D&D 5e v6 is active, then report the console details.");
       return null;
     }
     if (companionPickerActive) {
