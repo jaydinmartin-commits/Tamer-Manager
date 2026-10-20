@@ -22,10 +22,8 @@ export class TamerCompendiumConfiguration extends HandlebarsApplicationMixin(App
 
   async _prepareContext() {
     const selected = new Set(game.settings.get(MODULE_ID, SETTING_KEY) ?? []);
-    const browserSources = game.settings.get("dnd5e", "packSourceConfiguration") ?? {};
     const packs = Array.from(game.packs ?? [])
-      .filter(pack => (pack.documentName === "Actor" || pack.metadata?.type === "Actor") &&
-        browserSources[pack.collection] !== false)
+      .filter(pack => pack.documentName === "Actor" || pack.metadata?.type === "Actor")
       .sort((a, b) => String(a.metadata?.label ?? a.collection).localeCompare(String(b.metadata?.label ?? b.collection)))
       .map(pack => ({
         collection: pack.collection,
