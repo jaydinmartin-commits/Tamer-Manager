@@ -4,6 +4,7 @@ import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "./data/companion-improvement-cost.js";
 import { selectedImprovementDisplay } from "./data/companion-improvement-display.js";
+import { syncImprovementSheetItems } from "./data/companion-improvement-sheet-sync.js";
 import CompendiumBrowser from "systems/dnd5e/module/applications/compendium-browser.mjs";
 
 const MODULE_ID = "tamer-manager";
@@ -451,7 +452,12 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         ? { ...item, improvements: result }
         : item));
       if (!saved) throw new Error("Improvement selection did not persist.");
-      ui.notifications.info("Companion improvements saved.");
+      const sheetSync = await syncImprovementSheetItems(actor, result, allDefinitions);
+      if (sheetSync.warnings.length) {
+        ui.notifications.warn("Selections saved, but sheet synchronization needs attention: " + sheetSync.warnings.join(" "));
+      } else {
+        ui.notifications.info("Companion improvements saved.");
+      }
       await this.render({ force: true });
     } catch (error) {
       console.error("Tamer Manager | Improvement selection failed.", error);
