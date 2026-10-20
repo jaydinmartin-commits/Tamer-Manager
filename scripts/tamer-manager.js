@@ -203,7 +203,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     // not serve those source paths directly, even when the browser is available.
     const applications = game.dnd5e?.applications ?? globalThis.dnd5e?.applications;
     const CompendiumBrowser = applications?.CompendiumBrowser;
-    const CompendiumBrowserSettingsConfig = applications?.CompendiumBrowserSettingsConfig;
+    const CompendiumBrowserSettingsConfig = applications?.settings?.CompendiumBrowserSettingsConfig;
     if (typeof CompendiumBrowser?.selectOne !== "function" ||
         typeof CompendiumBrowserSettingsConfig?.collateSources !== "function") {
       console.error("Tamer Manager | D&D 5e Compendium Browser exports unavailable.", {
