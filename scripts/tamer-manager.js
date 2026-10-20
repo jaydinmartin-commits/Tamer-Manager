@@ -334,8 +334,20 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const requiredSlots = additionalImprovementSlotCost(definition.slotCost, replacedCost);
       const cap = definition.repeatable ? (definition.maxSelections ?? maximum) : 1;
       const disabled = !isSelected && (!levelMet || !prerequisitesMet || !replacementMet || remaining < requiredSlots);
+      const disabledReason = !isSelected
+        ? (!levelMet
+          ? "Tamer level or companion restriction not met"
+          : !prerequisitesMet
+            ? `Prerequisites required: ${definition.prerequisiteIds.filter(id => !effectiveSelectedIds.has(id)).map(id => byId.get(id)?.name ?? id).join(", ")}`
+            : !replacementMet
+              ? `Select ${byId.get(definition.replacesId)?.name ?? definition.replacesId} first`
+              : remaining < requiredSlots
+                ? `Needs ${requiredSlots} additional slot(s); ${remaining} available`
+                : "")
+        : "";
       const description = foundry.utils.escapeHTML(String(definition.metadata?.description ?? ""));
-      return `<label class="tamer-manager__improvement-option"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites")}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
+      const detail = disabled ? foundry.utils.escapeHTML(disabledReason) : (description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites"));
+      return `<label class="tamer-manager__improvement-option"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${detail}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
     }).join("");
     const legacyRows = unknownLegacySelections.map(([id, count]) =>
       `<label class="tamer-manager__improvement-option is-legacy"><input type="checkbox" checked disabled><span><strong>${foundry.utils.escapeHTML(id)}</strong><small>Previously saved selection (${count} rank${count === 1 ? "" : "s"}). Its definition is not currently configured; this selection will be preserved.</small></span></label>`
