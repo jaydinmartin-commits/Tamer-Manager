@@ -2,7 +2,7 @@ const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
-import { selectedImprovementSlotCost, additionalImprovementSlotCost } from "./data/companion-improvement-cost.js";
+import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "./data/companion-improvement-cost.js";
 
 const MODULE_ID = "tamer-manager";
 
@@ -309,6 +309,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       savedCounts.set(id, (savedCounts.get(id) ?? 0) + count);
     }
     const byId = new Map(definitions.map(definition => [definition.id, definition]));
+    const previouslySavedIds = new Set(savedCounts.keys());
     const effectiveSelectedIds = new Set([...savedCounts.keys()]);
     for (const id of [...effectiveSelectedIds]) {
       const definition = byId.get(id);
@@ -382,7 +383,7 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!definition && unknownLegacySelections.some(([id]) => id === value.id)) continue;
       if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record }) ||
           (definition.prerequisiteIds ?? []).some(prerequisite => !effectiveIds.has(prerequisite)) ||
-          (definition.replacesId && !resultIds.has(definition.replacesId) && !savedCounts.has(value.id)) ||
+          !hasRequiredImprovementReplacement(definition, resultIds, previouslySavedIds) ||
           (!definition.repeatable && value.count !== 1) ||
           value.count > (definition.maxSelections ?? maximum) ||
           !Number.isInteger(Number(definition.slotCost)) || Number(definition.slotCost) < 0) {
