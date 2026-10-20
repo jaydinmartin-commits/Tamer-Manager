@@ -2,8 +2,11 @@ const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
+import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "./data/companion-improvement-cost.js";
 
 const MODULE_ID = "tamer-manager";
+
+
 const ADD_REASONS = {
   "missing-tamer-or-companion": "A Tamer and companion Actor are required.",
   "missing-companion-uuid": "The selected Actor cannot be referenced as a companion.",
@@ -77,12 +80,12 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         actorName: actor?.name ?? record.name ?? "Missing companion Actor",
         selectedImprovements: Array.isArray(record.improvements) ? record.improvements.length : 0,
         improvementProgressLabel: (() => {
-          const selected = Array.isArray(record.improvements) ? record.improvements.length : 0;
-          if (!actor || tamerLevel < 1) return `${selected} / —`;
+          const selectedSlots = selectedImprovementSlotCost(record, CompanionOptions.byType("improvement"));
+          if (!actor || tamerLevel < 1) return `${selectedSlots} / —`;
           try {
             const available = TamerCompanionSummary.trainingFor(tamerLevel, actor.system?.details?.cr ?? actor.system?.details?.challenge).improvements;
-            return `${selected} / ${available}`;
-          } catch { return `${selected} / —`; }
+            return `${selectedSlots} / ${available}`;
+          } catch { return `${selectedSlots} / —`; }
         })(),
         challengeRatingLabel: (() => {
           const cr = actor?.system?.details?.cr ?? actor?.system?.details?.challenge;
@@ -301,21 +304,20 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const value of record.improvements ?? []) {
       const id = typeof value === "string" ? value : String(value?.id ?? "");
       if (!id) continue;
-      const count = typeof value === "string" ? 1 : Math.max(1, Number(value?.count ?? value?.rank ?? 1));
+      const rawCount = typeof value === "string" ? 1 : Number(value?.count ?? value?.rank ?? 1);
+      const count = Number.isFinite(rawCount) && rawCount >= 1 ? Math.floor(rawCount) : 1;
       savedCounts.set(id, (savedCounts.get(id) ?? 0) + count);
     }
     const byId = new Map(definitions.map(definition => [definition.id, definition]));
+    const previouslySavedIds = new Set(savedCounts.keys());
     const effectiveSelectedIds = new Set([...savedCounts.keys()]);
     for (const id of [...effectiveSelectedIds]) {
       const definition = byId.get(id);
       if (definition?.replacesId) effectiveSelectedIds.delete(definition.replacesId);
     }
-    const selectedCount = [...savedCounts.entries()].reduce((sum, [id, count]) => {
-      const definition = byId.get(id);
-      if (!definition || [...savedCounts.keys()].some(selectedId => byId.get(selectedId)?.replacesId === id)) return sum;
-      return sum + (Number(definition.slotCost) || 0) * count;
-    }, 0);
-    if (!definitions.length) {
+    const selectedCount = selectedImprovementSlotCost(record, definitions);
+    const unknownLegacySelections = [...savedCounts.entries()].filter(([id]) => !byId.has(id));
+    if (!definitions.length && !unknownLegacySelections.length) {
       ui.notifications.warn("No companion improvements have been configured by the GM yet.");
       return;
     }
@@ -328,24 +330,33 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const replacedCost = definition.replacesId && effectiveSelectedIds.has(definition.replacesId)
         ? (Number(byId.get(definition.replacesId)?.slotCost) || 0) * (savedCounts.get(definition.replacesId) ?? 1)
         : 0;
-      const remaining = Math.max(0, maximum - selectedCount + replacedCost);
+      const remaining = Math.max(0, maximum - selectedCount);
+      const requiredSlots = additionalImprovementSlotCost(definition.slotCost, replacedCost);
       const cap = definition.repeatable ? (definition.maxSelections ?? maximum) : 1;
-      const disabled = !isSelected && (!levelMet || !prerequisitesMet || !replacementMet || remaining < 1);
+      const disabled = !isSelected && (!levelMet || !prerequisitesMet || !replacementMet || remaining < requiredSlots);
       const description = foundry.utils.escapeHTML(String(definition.metadata?.description ?? ""));
       return `<label class="tamer-manager__improvement-option"><input type="checkbox" name="improvement" value="${foundry.utils.escapeHTML(definition.id)}" ${isSelected ? "checked" : ""} ${disabled ? "disabled" : ""}><span><strong>${foundry.utils.escapeHTML(definition.name)}</strong><small>${description || (definition.prerequisiteIds?.length ? `Prerequisites: ${foundry.utils.escapeHTML(definition.prerequisiteIds.join(", "))}` : "No additional prerequisites")}</small>${definition.repeatable ? `<span class="tamer-manager__rank-control">Ranks <input type="number" name="count-${foundry.utils.escapeHTML(definition.id)}" min="1" max="${cap}" value="${Math.min(count || 1, cap)}"></span>` : ""}</span></label>`;
     }).join("");
+    const legacyRows = unknownLegacySelections.map(([id, count]) =>
+      `<label class="tamer-manager__improvement-option is-legacy"><input type="checkbox" checked disabled><span><strong>${foundry.utils.escapeHTML(id)}</strong><small>Previously saved selection (${count} rank${count === 1 ? "" : "s"}). Its definition is not currently configured; this selection will be preserved.</small></span></label>`
+    ).join("");
+    const legacyNotice = unknownLegacySelections.length
+      ? `<p class="tamer-manager__legacy-note"><i class="fa-solid fa-triangle-exclamation"></i> ${unknownLegacySelections.length} saved selection(s) are not currently configured. They will be preserved, but their slot costs cannot be verified until the GM restores their definitions.</p>`
+      : "";
     const result = await foundry.applications.api.DialogV2.wait({
       window: { title: `Manage Improvements — ${actor.name}` },
-      content: `<form><p>Choose up to ${maximum} improvement slots. Repeatable improvements can use multiple slots when permitted.</p><div class="tamer-manager__improvement-list">${rows}</div></form>`,
+      content: `<form><p>Choose up to ${maximum} improvement slots. Repeatable improvements can use multiple slots when permitted.</p>${legacyNotice}<div class="tamer-manager__improvement-list">${legacyRows}${rows}</div></form>`,
       buttons: [
         { action: "save", label: "Save", default: true, callback: (event, button) => {
           const form = button.form;
-          return Array.from(form.querySelectorAll('input[name="improvement"]:checked')).map(input => {
+          const selected = Array.from(form.querySelectorAll('input[name="improvement"]:checked')).map(input => {
             const definition = byId.get(input.value);
             const countInput = form.querySelector(`input[name="count-${CSS.escape(input.value)}"]`);
             const count = definition?.repeatable ? Math.max(1, Math.min(Number(countInput?.value) || 1, definition.maxSelections ?? maximum)) : 1;
             return { id: input.value, count };
           });
+          for (const [id, count] of unknownLegacySelections) selected.push({ id, count });
+          return selected;
         }},
         { action: "cancel", label: "Cancel" }
       ]
@@ -353,23 +364,26 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!Array.isArray(result)) return;
     const resultCounts = new Map(result.map(value => [value.id, value.count]));
     const resultIds = new Set(resultCounts.keys());
+    if (unknownLegacySelections.length) {
+      const newlyAddedKnownSelection = result.some(value => byId.has(value.id) && !savedCounts.has(value.id));
+      if (newlyAddedKnownSelection) {
+        ui.notifications.warn("Restore the missing improvement definitions before adding new improvements. Existing saved selections were not changed.");
+        return;
+      }
+    }
     const resultDefinitions = result.map(value => byId.get(value.id));
-    const replacedIds = new Set(resultDefinitions.map(definition => definition?.replacesId).filter(Boolean));
     const effectiveIds = new Set([...resultIds].filter(id => !resultDefinitions.some(definition => definition?.replacesId === id)));
-    const effectiveCount = result.reduce((sum, value) => {
-      const definition = byId.get(value.id);
-      if (!definition || resultDefinitions.some(candidate => candidate?.replacesId === value.id)) return sum;
-      return sum + (Number(definition.slotCost) || 0) * value.count;
-    }, 0);
+    const effectiveCount = selectedImprovementSlotCost({ improvements: result }, definitions);
     if (effectiveCount > maximum) {
       ui.notifications.warn(`This companion can have at most ${maximum} effective improvement slots at the Tamer's current level.`);
       return;
     }
     for (const value of result) {
       const definition = byId.get(value.id);
+      if (!definition && unknownLegacySelections.some(([id]) => id === value.id)) continue;
       if (!definition || !CompanionOptions.isAvailable(definition, { tamer: this.tamer, companion: record }) ||
           (definition.prerequisiteIds ?? []).some(prerequisite => !effectiveIds.has(prerequisite)) ||
-          (definition.replacesId && !resultIds.has(definition.replacesId)) ||
+          !hasRequiredImprovementReplacement(definition, resultIds, previouslySavedIds) ||
           (!definition.repeatable && value.count !== 1) ||
           value.count > (definition.maxSelections ?? maximum) ||
           !Number.isInteger(Number(definition.slotCost)) || Number(definition.slotCost) < 0) {
