@@ -37,7 +37,7 @@ function companionIdentifier(companion) {
     const slug = String(companion?.name ?? "").slugify({ strict: true });
     return slug.trim().toLowerCase();
   } catch {
-    return String(companion?.name ?? "").trim().toLowerCase().replace(/\\s+/g, "-");
+    return String(companion?.name ?? "").trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   }
 }
 function companionMatches(companion, requirements) {

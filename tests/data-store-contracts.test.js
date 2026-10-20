@@ -483,3 +483,23 @@ await test("bespoke tree eligibility can match an NPC Actor by its name slug", (
   assert(CompanionOptions.byType("improvement", { companion: actorWithoutIdentifier }).some(item => item.id === "growth-i"),
     "A dnd5e NPC Actor without a dedicated system identifier should match through its normalized name slug.");
 });
+
+await test("name-slug fallback normalizes whitespace without Foundry string extensions", () => {
+  const original = String.prototype.slugify;
+  try {
+    delete String.prototype.slugify;
+    settings.set("tamer-manager.companionTrees", {
+      schemaVersion: 1,
+      trees: [{ id: "blue-beetle-tree", name: "Blue Beetle", description: "", companionIdentifier: "khaji-da" }]
+    });
+    settings.set("tamer-manager.companionOptions", {
+      schemaVersion: 1,
+      definitions: [option("growth-i", { name: "Growth I", treeId: "blue-beetle-tree" })]
+    });
+    const actorWithoutIdentifier = { name: "Khaji Da", system: { details: {} } };
+    assert(CompanionOptions.byType("improvement", { companion: actorWithoutIdentifier }).some(item => item.id === "growth-i"),
+      "The fallback must normalize spaces to hyphens when Foundry's slugify extension is unavailable.");
+  } finally {
+    if (original) String.prototype.slugify = original;
+  }
+});
