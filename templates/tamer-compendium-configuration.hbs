@@ -1,0 +1,32 @@
+<section class="tamer-manager__root tamer-manager-config__root">
+  <header class="tamer-manager__header">
+    <div>
+      <h2>Companion Source Compendiums</h2>
+      <p class="tamer-manager__tamer">GM configuration · {{selectedCount}} selected</p>
+    </div>
+    <div class="tamer-manager__actions">
+      <button type="button" data-action="refresh" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+    </div>
+  </header>
+  <main class="tamer-manager-config__source-body">
+    <p>Choose the Actor compendiums that may supply companions. This controls the Add Companion picker; it does not move or copy source Actors into the world.</p>
+    {{#if hasPacks}}
+      <form>
+        <div class="tamer-manager-config__source-list">
+          {{#each packs}}
+            <label class="tamer-manager-config__source-row">
+              <input type="checkbox" name="compendium" value="{{collection}}" {{#if selected}}checked{{/if}} {{#unless visible}}disabled{{/unless}}>
+              <span><strong>{{label}}</strong><small>{{collection}}{{#if packageName}} · {{packageName}}{{/if}}{{#unless visible}} · Not currently visible to this user{{/unless}}</small></span>
+            </label>
+          {{/each}}
+        </div>
+        <footer class="tamer-manager-config__footer">
+          <span>Only visible Actor compendiums can be selected. Existing bonded companions are unaffected.</span>
+          <button type="button" data-action="save"><i class="fa-solid fa-floppy-disk"></i> Save Sources</button>
+        </footer>
+      </form>
+    {{else}}
+      <p class="tamer-manager__empty">No Actor compendiums are currently available.</p>
+    {{/if}}
+  </main>
+</section>

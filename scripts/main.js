@@ -2,6 +2,7 @@ import { TamerManager } from "./tamer-manager.js";
 import { TamerDevelopmentPanel } from "./tamer-development-panel.js";
 import { TamerConfiguration } from "./tamer-configuration.js";
 import { TamerTreeConfiguration } from "./tamer-tree-configuration.js";
+import { TamerCompendiumConfiguration } from "./tamer-compendium-configuration.js";
 import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptionDefinition } from "./data/companion-option-definition.js";
 import { CompanionOptionStore } from "./data/companion-option-store.js";
@@ -35,6 +36,21 @@ Hooks.once("init", () => {
     hint: "Internal configuration storage for named companion improvement trees.",
     scope: "world", config: false, type: Object,
     default: { schemaVersion: 1, trees: [] }
+  });
+
+  game.settings.register(MODULE_ID, "companionCompendiums", {
+    name: "Tamer Manager Companion Compendiums",
+    hint: "Compendium collections allowed in the native Add Companion picker.",
+    scope: "world", config: false, type: Array, default: []
+  });
+
+  game.settings.registerMenu(MODULE_ID, "companionCompendiumsConfig", {
+    name: "Companion Source Compendiums",
+    label: "Configure Compendiums",
+    hint: "Choose which Actor compendiums are available when adding a companion.",
+    icon: "fa-solid fa-books",
+    type: TamerCompendiumConfiguration,
+    restricted: true
   });
 
   game.settings.registerMenu(MODULE_ID, "developmentPanel", {
@@ -88,6 +104,7 @@ Hooks.once("init", () => {
     TamerDevelopmentPanel,
     TamerConfiguration,
     TamerTreeConfiguration,
+    TamerCompendiumConfiguration,
     TamerRecords,
     CompanionOptionDefinition,
     CompanionOptionStore,

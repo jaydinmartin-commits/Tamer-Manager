@@ -21,8 +21,6 @@ function validateRawDefinition(raw, index) {
   if (raw.requirements?.companionIdentifiers != null && (!Array.isArray(raw.requirements.companionIdentifiers) || raw.requirements.companionIdentifiers.some(value => typeof value !== "string"))) throw new Error(`Option ${label} has invalid companion identifiers.`);
   if (raw.prerequisiteIds != null && (!Array.isArray(raw.prerequisiteIds) || raw.prerequisiteIds.some(value => typeof value !== "string"))) throw new Error(`Option ${label} has invalid prerequisite IDs.`);
   if (raw.treeId != null && (typeof raw.treeId !== "string" || !raw.treeId.trim())) throw new Error(`Option ${label} has an invalid tree ID.`);
-  if (raw.displayOnManager != null && typeof raw.displayOnManager !== "boolean") throw new Error(`Option ${label} has an invalid displayOnManager flag.`);
-  if (raw.displayOnSheet != null && typeof raw.displayOnSheet !== "boolean") throw new Error(`Option ${label} has an invalid displayOnSheet flag.`);
   if (raw.metadata != null && (!raw.metadata || typeof raw.metadata !== "object" || Array.isArray(raw.metadata))) throw new Error(`Option ${label} has invalid metadata.`);
 }
 function migrateStore(value) {
@@ -90,8 +88,6 @@ function normalizeDefinitions(definitions) {
     if (record.requirements?.tamerLevel != null && (!Number.isInteger(record.requirements.tamerLevel) || record.requirements.tamerLevel < 0 || record.requirements.tamerLevel > 20)) throw new Error(`Companion option ${record.id} has invalid Tamer level requirement.`);
     if (record.prerequisiteIds != null && !Array.isArray(record.prerequisiteIds)) throw new Error(`Companion option ${record.id} prerequisiteIds must be an array.`);
     if (record.treeId != null && (typeof record.treeId !== "string" || !record.treeId.trim())) throw new Error(`Companion option ${record.id} has invalid treeId.`);
-    if (record.displayOnManager != null && typeof record.displayOnManager !== "boolean") throw new Error(`Companion option ${record.id} has invalid displayOnManager flag.`);
-    if (record.displayOnSheet != null && typeof record.displayOnSheet !== "boolean") throw new Error(`Companion option ${record.id} has invalid displayOnSheet flag.`);
     return CompanionOptionDefinition.normalize(record);
   });
   const validation = CompanionOptionValidator.validate(normalized);

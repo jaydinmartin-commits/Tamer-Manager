@@ -61,8 +61,6 @@ export const CompanionOptionValidator = Object.freeze({
       if (definition.maxSelections !== null && (!Number.isInteger(definition.maxSelections) || definition.maxSelections < 1)) errors.push(`Option ${definition.id} has invalid maxSelections.`);
       if (definition.maxSelections !== null && !definition.repeatable && definition.maxSelections > 1) errors.push(`Option ${definition.id} cannot have maxSelections greater than 1 unless repeatable.`);
       if (definition.treeId !== null && (typeof definition.treeId !== "string" || !definition.treeId.trim())) errors.push(`Option ${definition.id} has an invalid treeId.`);
-      if (typeof definition.displayOnManager !== "boolean") errors.push(`Option ${definition.id} displayOnManager must be a boolean.`);
-      if (typeof definition.displayOnSheet !== "boolean") errors.push(`Option ${definition.id} displayOnSheet must be a boolean.`);
     }
 
     for (const definition of validObjects) {
