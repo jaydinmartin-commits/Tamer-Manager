@@ -6,8 +6,6 @@ import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequired
 import { selectedImprovementDisplay } from "./data/companion-improvement-display.js";
 import { syncImprovementSheetItems, reconcileGrowthHitDie } from "./data/companion-improvement-sheet-sync.js";
 import { ToughenUpApplication } from "./data/toughen-up-application.js";
-import CompendiumBrowser from "systems/dnd5e/module/applications/compendium-browser.mjs";
-import CompendiumBrowserSettingsConfig from "systems/dnd5e/module/applications/settings/compendium-browser-settings.mjs";
 
 const MODULE_ID = "tamer-manager";
 
@@ -200,9 +198,21 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return null;
     }
 
-    // Use the native D&D 5e v6 Compendium Browser imported from its system module.
-    if (typeof CompendiumBrowser?.selectOne !== "function") {
-      ui.notifications.error("The D&D 5e Compendium Browser is unavailable. Confirm that dnd5e v6 has finished initializing.");
+    // Load the system browser only when the GM opens the picker. A system-path
+    // mismatch must never prevent module settings, API, or manager initialization.
+    let CompendiumBrowser;
+    let CompendiumBrowserSettingsConfig;
+    try {
+      ({ default: CompendiumBrowser } = await import("systems/dnd5e/module/applications/compendium-browser.mjs"));
+      ({ default: CompendiumBrowserSettingsConfig } = await import("systems/dnd5e/module/applications/settings/compendium-browser-settings.mjs"));
+    } catch (error) {
+      console.error("Tamer Manager | Could not load the D&D 5e Compendium Browser for Add Companion.", error);
+      ui.notifications.error("Tamer Manager loaded, but the D&D 5e Compendium Browser could not be loaded. Confirm D&D 5e v6 is active and fully initialized.");
+      return null;
+    }
+    if (typeof CompendiumBrowser?.selectOne !== "function" ||
+        typeof CompendiumBrowserSettingsConfig?.collateSources !== "function") {
+      ui.notifications.error("The D&D 5e Compendium Browser API is unavailable. Confirm that dnd5e v6 has finished initializing.");
       return null;
     }
     if (companionPickerActive) {
