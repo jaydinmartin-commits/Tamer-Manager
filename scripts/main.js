@@ -108,7 +108,7 @@ Hooks.once("init", () => {
     CharacterActorSheet.PARTS = {
       ...CharacterActorSheet.PARTS,
       companions: {
-        container: { classes: ["tab-body", "tamer-manager"], id: "tabs" },
+        container: { classes: ["tab-body"], id: "tab" },
         template: "modules/tamer-manager/templates/tamer-manager.hbs",
         scrollable: [""]
       }
