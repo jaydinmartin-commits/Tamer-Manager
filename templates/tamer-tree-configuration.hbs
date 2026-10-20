@@ -1,0 +1,46 @@
+<section class="tamer-manager__root tamer-manager-config__root">
+  <header class="tamer-manager__header">
+    <div>
+      <h2>Bespoke Companion Trees</h2>
+      <p class="tamer-manager__tamer">Create and manage named improvement trees for bespoke companions.</p>
+    </div>
+    <div class="tamer-manager__actions">
+      <button type="button" data-action="newTree"><i class="fa-solid fa-plus"></i> New Tree</button>
+      <button type="button" data-action="refresh" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+    </div>
+  </header>
+  <main class="tamer-manager-config__body">
+    <aside class="tamer-manager-config__list">
+      <div class="tamer-manager-config__list-header"><strong>Companion Trees</strong><span>{{trees.length}}</span></div>
+      {{#if hasTrees}}
+        <div class="tamer-manager-config__options">
+          {{#each trees}}
+            <article class="tamer-manager-config__option {{#if (eq id ../editingId)}}is-selected{{/if}}">
+              <button type="button" class="tamer-manager-config__option-select" data-action="editTree" data-tree-id="{{id}}">
+                <span class="tamer-manager-config__option-name">{{name}}</span>
+                <span class="tamer-manager-config__option-meta">{{id}}</span>
+              </button>
+              <button type="button" class="tamer-manager-config__option-delete" data-action="deleteTree" data-tree-id="{{id}}" title="Delete tree"><i class="fa-solid fa-trash"></i></button>
+            </article>
+          {{/each}}
+        </div>
+      {{else}}
+        <p class="tamer-manager__empty">No bespoke companion trees have been created.</p>
+      {{/if}}
+    </aside>
+    <section class="tamer-manager-config__editor">
+      <form>
+        <div class="tamer-manager-config__editor-header">
+          <div><h3>{{#if editingId}}Edit Tree{{else}}Create a Bespoke Tree{{/if}}</h3><p>Tree IDs are stable references used by companion improvement definitions.</p></div>
+          {{#if editingId}}<button type="button" data-action="cancelEdit">New</button>{{/if}}
+        </div>
+        <div class="tamer-manager-config__grid">
+          <label><span>Tree ID</span><input name="id" type="text" value="{{draft.id}}" {{#if editingId}}readonly{{/if}} placeholder="e.g. khaji-da" required></label>
+          <label><span>Tree Name</span><input name="name" type="text" value="{{draft.name}}" placeholder="e.g. Khaji Da" required></label>
+          <label class="tamer-manager-config__wide"><span>Description</span><textarea name="description" rows="5" placeholder="Describe which bespoke companion this tree belongs to and its theme.">{{draft.description}}</textarea></label>
+        </div>
+        <footer class="tamer-manager-config__footer"><span>After creating a tree, assign its ID to improvement definitions in Companion Options.</span><button type="button" data-action="saveTree"><i class="fa-solid fa-floppy-disk"></i> Save Tree</button></footer>
+      </form>
+    </section>
+  </main>
+</section>
