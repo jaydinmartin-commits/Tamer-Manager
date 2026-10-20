@@ -197,21 +197,13 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       ui.notifications.warn("Choose an NPC Actor from an enabled compendium.");
       return null;
     }
-    const existingUuids = new Set(TamerRecords.read(tamer).map(record => record.actorUuid));
-    if ([...existingUuids].some(existingUuid => {
-      const existingActor = game.actors?.get(existingUuid.split(".").at(-1));
-      return existingActor?.name === source.name;
-    })) {
-      ui.notifications.warn("A companion with that name is already bonded. Rename the source Actor or unlink the existing companion first.");
-      return null;
-    }
-
     // Compendium documents must never be modified in place. Create a world Actor
     // copy before initialization, then let the existing initialization/recovery
     // contract manage the world document as it would a manually created NPC.
     const data = source.toObject();
     delete data._id;
     data.folder = null;
+    foundry.utils.setProperty(data, "flags.tamer-manager.sourceUuid", uuid);
     const companion = await Actor.create(data);
     if (!companion) {
       ui.notifications.error("Foundry could not create a world Actor from the selected compendium entry.");
@@ -229,6 +221,10 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const preview = await TamerRecords.previewAdd(this.tamer, actor);
     if (!preview.eligible) {
+      if (actor.getFlag?.(MODULE_ID, "sourceUuid")) {
+        try { await actor.delete(); }
+        catch (error) { console.error("Tamer Manager | Could not clean up rejected compendium Actor.", error); }
+      }
       ui.notifications.warn(ADD_REASONS[preview.reason] ?? `Companion could not be added (${preview.reason ?? "eligibility-check-failed"}).`);
       return;
     }
