@@ -31,3 +31,13 @@ export function additionalImprovementSlotCost(requiredSlots, replacedSlots = 0) 
   const credit = Math.max(0, Number(replacedSlots) || 0);
   return Math.max(0, required - credit);
 }
+
+/**
+ * A newly selected upgrade requires its base selection. An already-saved
+ * upgrade remains valid if older data no longer contains that base selection.
+ */
+export function hasRequiredImprovementReplacement(definition, selectedIds, previouslySavedIds = new Set()) {
+  return !definition?.replacesId ||
+    selectedIds.has(definition.replacesId) ||
+    previouslySavedIds.has(definition.id);
+}
