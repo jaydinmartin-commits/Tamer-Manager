@@ -5,6 +5,7 @@ import { TamerRecords } from "../scripts/data/tamer-records.js";
 import { CompanionRecord } from "../scripts/data/companion-record.js";
 import { CompanionInitializationApplication } from "../scripts/data/companion-initialization-application.js";
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "../scripts/data/companion-improvement-cost.js";
+import { selectedImprovementDisplay } from "../scripts/data/companion-improvement-display.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
 
@@ -88,6 +89,28 @@ await test("improvement slot accounting honors costs, repeatable ranks, and repl
     "A newly selected upgrade without its replacement must be rejected.");
   assert(hasRequiredImprovementReplacement(selectedUpgrade, new Set(), new Set(["growth-ii"])),
     "A previously saved upgrade must remain valid if its replaced selection is absent.");
+});
+
+await test("selected improvement display resolves names, repeatable ranks, upgrades, and missing definitions", () => {
+  const definitions = [
+    option("growth-i", { name: "Growth I", slotCost: 1 }),
+    option("growth-ii", { name: "Growth II", slotCost: 2, replacesId: "growth-i" }),
+    option("toughen-up", { name: "Toughen Up", repeatable: true, maxSelections: 4 })
+  ];
+  const result = selectedImprovementDisplay({
+    improvements: [
+      { id: "growth-i", count: 1 },
+      { id: "growth-ii", count: 1 },
+      { id: "toughen-up", count: 3 },
+      { id: "missing-old-option", count: 2 }
+    ]
+  }, definitions);
+  assert(result.some(item => item.label === "Growth II"), "Configured selected improvements should display their configured names.");
+  assert(!result.some(item => item.id === "growth-i"), "An improvement replaced by a selected upgrade should not be displayed as active.");
+  assert(result.some(item => item.label === "Toughen Up ×3"), "Repeatable improvement ranks should be clear on the card.");
+  assert(result.some(item => item.missingDefinition && item.label === "missing-old-option (definition missing)"), "Legacy selections without definitions must remain visible instead of being silently hidden.");
+  const strings = selectedImprovementDisplay({ improvements: ["growth-i"] }, definitions);
+  assert(strings.some(item => item.label === "Growth I"), "Legacy string-format selections must display.");
 });
 
 await test("companion record round-trip preserves vessel, summon, improvement, and splicer state", () => {

@@ -61,7 +61,15 @@
                 <div class="tamer-manager__improvements">
                   <span class="tamer-manager__stat-label">IMPROVEMENTS</span>
                   <strong>{{improvementProgressLabel}}</strong>
-                  <span>Choose improvements from the configured options</span>
+                  {{#if hasImprovementDisplay}}
+                    <ul class="tamer-manager__selected-improvements" aria-label="Selected improvements">
+                      {{#each improvementDisplay}}
+                        <li class="{{#if missingDefinition}}is-missing{{/if}}">{{label}}</li>
+                      {{/each}}
+                    </ul>
+                  {{else}}
+                    <span>No improvements selected</span>
+                  {{/if}}
                   <button type="button" data-action="manageImprovements" data-record-id="{{id}}" title="Manage companion improvements"><i class="fa-solid fa-list-check"></i> Manage</button>
                 </div>
               {{else}}

@@ -557,3 +557,29 @@
 .tamer-manager__improvement-list .tamer-manager__improvement-option.is-legacy input {
   accent-color: var(--color-level-warning, #a77b35);
 }
+
+
+/* Compact list of configured improvements on bonded companion cards. */
+.tamer-manager .tamer-manager__selected-improvements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.25rem 0 0.45rem;
+  padding: 0;
+  list-style: none;
+}
+.tamer-manager .tamer-manager__selected-improvements li {
+  max-width: 100%;
+  padding: 0.15rem 0.45rem;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--tm-border);
+  border-radius: 0.25rem;
+  background: var(--tm-surface);
+  color: var(--tm-text);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+.tamer-manager .tamer-manager__selected-improvements li.is-missing {
+  border-style: dashed;
+  color: var(--color-level-warning, #a77b35);
+}
