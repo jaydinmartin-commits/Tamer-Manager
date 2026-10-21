@@ -369,22 +369,26 @@ await test("initialization recovery repairs a failed relationship write without 
   }
 });
 
-await test("native companion picker limits displayed source packs and restores global browser methods", () => {
+await test("native companion picker scopes source filtering through a composable wrapper and restores fallback state", () => {
   const source = readFileSync(new URL("../scripts/tamer-manager.js", import.meta.url), "utf8");
   assert(source.includes("CompendiumBrowser.selectOne({"),
     "Add Companion must use the native D&D 5e Compendium Browser.");
-  assert(source.includes("CompendiumBrowser.fetch = async function(documentClass, options = {})"),
-    "The native browser fetch wrapper must be asynchronous.");
-  assert(source.includes("await originalFetch.call(this, documentClass, options)"),
-    "The allowlist must remain active while the browser asynchronously indexes results.");
-  assert(source.includes("CompendiumBrowserSettingsConfig.collateSources = function()"),
-    "The allowlist must filter source collation before Actor pack indexing.");
-  assert(source.includes("return new Set([...itemSources, ...allowedCollections])"),
+  assert(source.includes("dnd5e.applications.settings.CompendiumBrowserSettingsConfig.collateSources"),
+    "The wrapper must target the dnd5e v6 source-collation API, not replace CompendiumBrowser.fetch.");
+  assert(source.includes("libWrapper.register(") && source.includes('"WRAPPER"'),
+    "The source filter must register as a composable libWrapper wrapper when libWrapper is available.");
+  assert(source.includes("function(wrapped, ...args)") && source.includes("const nativeSources = [...wrapped(...args)]"),
+    "The wrapper must call the wrapped native method with its original arguments and preserve its sources.");
+  assert(source.includes("if (!activeAllowedCollections) return new Set(nativeSources)"),
+    "The wrapper must leave native sources unchanged outside an active companion picker.");
+  assert(source.includes("return new Set([...itemSources, ...activeAllowedCollections])"),
     "The configured Actor allowlist must be combined with normal non-Actor browser sources.");
-  assert(source.includes("CompendiumBrowserSettingsConfig.collateSources = originalCollateSources"),
-    "The original source-collation method must be restored after indexing.");
-  assert(source.includes("CompendiumBrowser.fetch = originalFetch"),
-    "The original browser fetch method must be restored after selection or cancellation.");
+  assert(source.includes("CompendiumBrowserSettingsConfig.collateSources = function(...args)"),
+    "Worlds without libWrapper must use the scoped source-collation fallback.");
+  assert(source.includes("if (!useLibWrapper) CompendiumBrowserSettingsConfig.collateSources = originalCollateSources"),
+    "The fallback source-collation method must be restored after selection or cancellation.");
+  assert(source.includes("activeAllowedCollections = null") && source.includes("companionPickerActive = false"),
+    "Picker state must be cleared after selection or cancellation.");
   assert(source.includes('uuid.startsWith(`Compendium.${name}.`)'),
     "The selected Actor UUID must still be checked against the configured collections.");
 });
