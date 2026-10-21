@@ -3,7 +3,7 @@ import { TamerRecords } from "./data/tamer-records.js";
 import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "./data/companion-improvement-cost.js";
-import { selectedImprovementDisplay } from "./data/companion-improvement-display.js";
+import { selectedImprovementDisplay, selectedAdvancementChoiceLabels } from "./data/companion-improvement-display.js";
 import { syncImprovementSheetItems, reconcileGrowthHitDie, applyNewImprovementAdvancements } from "./data/companion-improvement-sheet-sync.js";
 import { ToughenUpApplication } from "./data/toughen-up-application.js";
 
@@ -121,7 +121,11 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         try { actor = await fromUuid(record.actorUuid); }
         catch { actor = null; }
       }
-      const improvementDisplay = selectedImprovementDisplay(record, CompanionOptions.byType("improvement", { companion: actor }).filter(option => option.displayOnManager !== false));
+      const improvementDisplay = selectedImprovementDisplay(record, CompanionOptions.byType("improvement", { companion: actor }).filter(option => option.displayOnManager !== false))
+        .map(entry => {
+          const choices = actor ? selectedAdvancementChoiceLabels(actor, entry.id) : [];
+          return { ...entry, label: choices.length ? entry.label + ": " + choices.join(", ") : entry.label, choices };
+        });
       return {
         ...record,
         actorName: actor?.name ?? record.name ?? "Missing companion Actor",
