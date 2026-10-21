@@ -180,6 +180,62 @@ export const ToughenUpApplication = Object.freeze({
     };
   },
 
+  async reconcile({ actor, desiredApplicationIds = [] } = {}) {
+    const warnings = [];
+    if (!actor?.update || !actor?.getFlag) {
+      return { removed: 0, warnings: ["Toughen Up could not be reconciled because the companion Actor is unavailable."] };
+    }
+    const desired = new Set(desiredApplicationIds.map(String));
+    const obsolete = getLedger(actor)
+      .filter(entry => entry?.type === "toughen-up" && !desired.has(String(entry.applicationId)))
+      .sort((a, b) => {
+        const rank = entry => Number(String(entry.applicationId).match(/::rank-(\\d+)::toughen-up-v1$/)?.[1] ?? 0);
+        return rank(b) - rank(a);
+      });
+    let removed = 0;
+    for (const entry of obsolete) {
+      const ledger = getLedger(actor);
+      if (!ledger.some(value => value.applicationId === entry.applicationId)) continue;
+      const hp = getHitPoints(actor);
+      const hd = getHitDie(actor);
+      const expectedMax = Number(entry.hpAfter?.max);
+      const expectedFormula = entry.formulaAfter;
+      const expectedHD = Number(entry.hitDiceAfter);
+      if (!hp || !hd || hp.maximum !== expectedMax || hd.maximum !== expectedHD ||
+          actor.system?.attributes?.hp?.formula !== expectedFormula) {
+        warnings.push("Toughen Up could not safely undo a removed rank because the companion's HP, Hit Dice, or HP formula changed after it was applied. Its history was preserved.");
+        continue;
+      }
+      const hpIncrease = Math.max(0, Number(entry.hpIncrease) || 0);
+      const nextMax = Math.max(0, hp.maximum - hpIncrease);
+      const nextValue = hp.value === 0 ? 0 : Math.max(0, Math.min(nextMax, hp.value - hpIncrease));
+      const nextLedger = ledger.filter(value => value.applicationId !== entry.applicationId);
+      try {
+        await actor.update({
+          "system.attributes.hd.max": Math.max(0, hd.maximum - 1),
+          "system.attributes.hp.max": nextMax,
+          "system.attributes.hp.value": nextValue,
+          "system.attributes.hp.formula": entry.formulaBefore,
+          [`flags.${MODULE_ID}.${FLAG_KEY}`]: nextLedger
+        });
+        const verified = Number(actor.system?.attributes?.hd?.max) === expectedHD - 1 &&
+          Number(actor.system?.attributes?.hp?.max) === nextMax &&
+          actor.system?.attributes?.hp?.formula === entry.formulaBefore &&
+          !getLedger(actor).some(value => value.applicationId === entry.applicationId);
+        if (!verified) {
+          warnings.push("A removed Toughen Up rank could not be fully verified after reversal. Check the companion's HP and Hit Dice.");
+          continue;
+        }
+        removed += 1;
+      } catch (error) {
+        console.error("Tamer Manager | Toughen Up reversal failed.", error);
+        warnings.push("A removed Toughen Up rank could not be reverted. Its history was preserved.");
+        break;
+      }
+    }
+    return { removed, warnings };
+  },
+
   history(actor) {
     return clone(getLedger(actor));
   }
