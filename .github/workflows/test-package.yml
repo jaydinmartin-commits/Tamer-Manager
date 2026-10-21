@@ -34,7 +34,7 @@ jobs:
           const manifest = JSON.parse(fs.readFileSync('module.json', 'utf8'));
           if (manifest.id !== 'tamer-manager') throw new Error('Unexpected module ID');
           if (!manifest.version) throw new Error('Missing module version');
-          if (!/^\\d+\\.\\d+\\.\\d+$/.test(manifest.version)) throw new Error('Module version must be a stable semver triplet');
+          if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) throw new Error('Module version must be a stable semver triplet');
           const expectedDownload = `https://github.com/jaydinmartin-commits/Tamer-Manager/releases/download/v${manifest.version}/tamer-manager-v${manifest.version}.zip`;
           if (manifest.download !== expectedDownload) throw new Error(`Manifest download URL does not match version ${manifest.version}: expected ${expectedDownload}`);
           if (!manifest.compatibility || Number(manifest.compatibility.minimum) > 14 || Number(manifest.compatibility.verified) < 14) throw new Error('Manifest compatibility must include Foundry v14');
