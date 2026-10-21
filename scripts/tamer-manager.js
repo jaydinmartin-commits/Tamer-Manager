@@ -518,8 +518,9 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       ? `<p class="tamer-manager__legacy-note"><i class="fa-solid fa-triangle-exclamation"></i> ${unknownLegacySelections.length} saved selection(s) are not currently configured. They will be preserved, but their slot costs cannot be verified until the GM restores their definitions.</p>`
       : "";
     const result = await foundry.applications.api.DialogV2.wait({
-      window: { title: `Manage Improvements — ${actor.name}` },
-      content: `<form><p>Choose up to ${maximum} improvement slots. Repeatable improvements can use multiple slots when permitted.</p>${legacyNotice}<div class="tamer-manager__improvement-list">${legacyRows}${rows.join("")}</div></form>`,
+      window: { title: `Manage Improvements — ${actor.name}`, resizable: true },
+      position: { width: 460, height: 480 },
+      content: `<form class="tamer-manager__improvement-dialog"><p>Choose up to ${maximum} improvement slots. Repeatable improvements can use multiple slots when permitted.</p>${legacyNotice}<div class="tamer-manager__improvement-list">${legacyRows}${rows.join("")}</div></form>`,
       buttons: [
         { action: "save", label: "Save", default: true, callback: (event, button) => {
           const form = button.form;
