@@ -210,7 +210,7 @@ export async function syncImprovementSheetItems(actor, selections, definitions, 
   const removalIds = [...new Set([...removals, ...excessAdvancementRanks].map(item => item.id).filter(Boolean))];
   if (removalIds.length) {
     try {
-      const removalItems = removalIds.map(id => actor.items.get(id)).filter(Boolean);
+      const removalItems = removalIds.map(id => actor.items.get?.(id) ?? Array.from(actor.items ?? []).find(item => item.id === id)).filter(Boolean);
       const advancementManagerClass = game.dnd5e?.applications?.advancement?.AdvancementManager;
       const completedNativeRemovals = new Set();
 
