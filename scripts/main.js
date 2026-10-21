@@ -133,8 +133,21 @@ Hooks.once("init", () => {
     };
 
     const forwardManagerAction = handler => function(event, target) {
-      const context = { tamer: this.actor, render: this.render.bind(this) };
-      return handler.call(context, event, target);
+      // Sheet actions can be invoked with a delegated target or the event's
+      // current target depending on the ApplicationV2 action dispatcher.
+      const actionTarget = target?.dataset
+        ? target
+        : event?.currentTarget?.dataset
+          ? event.currentTarget
+          : event?.target?.closest?.("[data-action]") ?? target;
+      const actor = this.actor ?? this.document ?? this.object;
+      if (!actor) {
+        console.error("Tamer Manager | Sheet action had no owning Actor.", { action: actionTarget?.dataset?.action, sheet: this });
+        ui.notifications.error("Tamer Manager could not identify the character for this action. Reopen the character sheet and try again.");
+        return;
+      }
+      const context = { tamer: actor, render: this.render.bind(this) };
+      return handler.call(context, event, actionTarget);
     };
     const sheetOptions = CharacterActorSheet.DEFAULT_OPTIONS ?? {};
     const managerActions = {
