@@ -1,6 +1,7 @@
 import { CompanionRecord } from "./companion-record.js";
 import { CompanionInitialization } from "./companion-initialization.js";
 import { CompanionInitializationApplication } from "./companion-initialization-application.js";
+import { CompanionOptions } from "./companion-options.js";
 
 const MODULE_ID = "tamer-manager";
 const FLAG_KEY = "companions";
@@ -113,6 +114,12 @@ export class TamerRecords {
     const record = CompanionRecord.create({
       id: foundry.utils.randomID(), name: companion.name ?? "Companion", actorUuid: companion.uuid
     });
+    // Bespoke features explicitly marked "grant on taming" are selected once
+    // during initial registration and never consume improvement slots.
+    const automaticGrants = CompanionOptions.byType("improvement", { companion })
+      .filter(option => option.grantOnTaming === true &&
+        CompanionOptions.isAvailable(option, { tamer: actor, companion }));
+    record.improvements = [...new Set(automaticGrants.map(option => String(option.id)))];
     try {
       await this.write(actor, [...records, record]);
     } catch (error) {
