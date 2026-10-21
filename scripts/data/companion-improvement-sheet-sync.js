@@ -4,6 +4,119 @@ const MODULE_ID = "tamer-manager";
  * Synchronize only module-owned improvement Items. Unrelated items and manually
  * created copies are never modified or deleted by this reconciliation.
  */
+/**
+ * Run the native D&D 5e advancement workflow for each newly added rank.
+ * The caller saves the selection only after all required choice workflows finish.
+ */
+export async function applyNewImprovementAdvancements(actor, previousSelections, nextSelections, definitions) {
+  const byId = new Map(definitions.map(definition => [String(definition.id), definition]));
+  const countSelections = selections => {
+    const counts = new Map();
+    for (const raw of selections ?? []) {
+      const id = typeof raw === "string" ? raw : String(raw?.id ?? "");
+      if (!id) continue;
+      const count = typeof raw === "string" ? 1 : Math.max(1, Math.floor(Number(raw?.count ?? raw?.rank ?? 1) || 1));
+      counts.set(id, Math.max(counts.get(id) ?? 0, count));
+    }
+    return counts;
+  };
+  const before = countSelections(previousSelections);
+  const after = countSelections(nextSelections);
+  const warnings = [];
+  const Manager = game.dnd5e?.applications?.advancement?.AdvancementManager;
+  for (const [id, count] of after) {
+    const definition = byId.get(id);
+    if (!definition?.sourceUuid) continue;
+    const oldCount = before.get(id) ?? 0;
+    const source = await fromUuid(definition.sourceUuid).catch(() => null);
+    if (!source || source.documentName !== "Item") {
+      warnings.push(definition.name + " has advancements but its source Item is unavailable.");
+      continue;
+    }
+    const sourceData = source.toObject();
+    if (!Array.isArray(sourceData.system?.advancement) || !sourceData.system.advancement.length) continue;
+    if (!Manager?.forNewItem) {
+      warnings.push("The D&D 5e advancement workflow is unavailable; " + definition.name + " was not added.");
+      continue;
+    }
+    for (let rank = 1; rank <= count; rank++) {
+      // Existing selection records can outlive an interrupted advancement
+      // workflow. Retry ranks whose managed advancement Item is still pending.
+      const completedRank = Array.from(actor.items ?? []).some(item =>
+        item.getFlag?.(MODULE_ID, "managedImprovementId") === id &&
+        Number(item.getFlag?.(MODULE_ID, "managedImprovementRank")) === rank &&
+        item.getFlag?.(MODULE_ID, "advancementWorkflow") !== true
+      );
+      if (rank <= oldCount && completedRank) continue;
+      // Record existing documents before opening the workflow. An interrupted
+      // rank may already have a pending managed Item, so matching only by flags
+      // could mistakenly mark that stale Item complete instead of the new result.
+      const existingItemIds = new Set(Array.from(actor.items ?? []).map(item => item.id ?? item._id).filter(Boolean));
+      const itemData = foundry.utils.deepClone(sourceData);
+      delete itemData._id;
+      itemData.flags ??= {};
+      itemData.flags[MODULE_ID] = {
+        ...(itemData.flags[MODULE_ID] ?? {}),
+        managedImprovementId: id,
+        managedImprovementRank: rank,
+        sourceUuid: source.uuid,
+        advancementWorkflow: true
+      };
+      let manager;
+      try {
+        manager = Manager.forNewItem(actor, itemData);
+        if (!manager.steps?.length) continue;
+        const completed = await new Promise(resolve => {
+          let settled = false;
+          const finish = value => {
+            if (settled) return;
+            settled = true;
+            Hooks.off("dnd5e.advancementManagerComplete", onComplete);
+            resolve(value);
+          };
+          const onComplete = candidate => {
+            if (candidate === manager) finish(true);
+          };
+          Hooks.on("dnd5e.advancementManagerComplete", onComplete);
+          const originalOnClose = manager._onClose.bind(manager);
+          manager._onClose = function(options) {
+            originalOnClose(options);
+            finish(false);
+          };
+          Promise.resolve(manager.render(true)).catch(error => {
+            console.error("Tamer Manager | Could not open advancement workflow.", error);
+            finish(false);
+          });
+        });
+        if (!completed) {
+          warnings.push(definition.name + " rank " + rank + " advancement was cancelled or failed; selections were not saved.");
+          return { warnings };
+        }
+        const created = Array.from(actor.items ?? []).find(item =>
+          !existingItemIds.has(item.id ?? item._id) &&
+          item.getFlag?.(MODULE_ID, "managedImprovementId") === id &&
+          Number(item.getFlag?.(MODULE_ID, "managedImprovementRank")) === rank &&
+          item.getFlag?.(MODULE_ID, "advancementWorkflow") === true
+        );
+        if (created) {
+          // Keep the Item that owns the advancement data even when the GM has
+          // disabled its ordinary sheet display. Deleting it here would orphan
+          // advancement choices and prevent D&D 5e from tracking/reversing them.
+          await created.update({
+            ["flags." + MODULE_ID + ".advancementWorkflow"]: false,
+            ["flags." + MODULE_ID + ".displayOnSheet"]: definition.displayOnSheet === true
+          });
+        }
+      } catch (error) {
+        console.error("Tamer Manager | Improvement advancement failed for " + id + " rank " + rank + ".", error);
+        warnings.push(definition.name + " rank " + rank + " advancement could not be completed.");
+        return { warnings };
+      }
+    }
+  }
+  return { warnings };
+}
+
 export async function syncImprovementSheetItems(actor, selections, definitions, allDefinitions = definitions) {
   const byId = new Map(definitions.map(definition => [String(definition.id), definition]));
   const allById = new Map(allDefinitions.map(definition => [String(definition.id), definition]));
@@ -60,12 +173,21 @@ export async function syncImprovementSheetItems(actor, selections, definitions, 
     }
   }
 
-  // If a selected legacy improvement no longer has a configured definition,
-  // preserve its existing managed Item instead of deleting content we cannot
-  // safely reconcile. It becomes removable again once its selection is removed.
+  // Preserve selected legacy definitions that are no longer configured, plus
+  // selected managed Items that actually own native advancement data. Do not
+  // preserve every selected-but-ineligible definition: its stale sheet Item
+  // must still be removed when it is no longer eligible for this companion.
+  const advancementOwnedIds = existing
+    .filter(item => {
+      const id = String(item.getFlag(MODULE_ID, "managedImprovementId") ?? "");
+      return counts.has(id) &&
+        (Array.isArray(item.system?.advancement) && item.system.advancement.length > 0);
+    })
+    .map(item => String(item.getFlag(MODULE_ID, "managedImprovementId")));
   const desiredIds = new Set([
     ...desired.keys(),
-    ...[...counts.keys()].filter(id => !allById.has(id))
+    ...[...counts.keys()].filter(id => !allById.has(id)),
+    ...advancementOwnedIds
   ]);
   const removals = existing.filter(item => !desiredIds.has(String(item.getFlag(MODULE_ID, "managedImprovementId"))));
   if (removals.length) {

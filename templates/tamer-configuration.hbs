@@ -53,7 +53,8 @@
             <legend>Display selected improvement</legend>
             <label class="tamer-manager-config__checkbox"><input name="displayOnManager" type="checkbox" {{#if draft.displayOnManager}}checked{{/if}}><span>Show on Companion Manager card</span></label>
             <label class="tamer-manager-config__checkbox"><input name="displayOnSheet" type="checkbox" {{#if draft.displayOnSheet}}checked{{/if}}><span>Add to companion character sheet</span></label>
-            <small>Display controls affect presentation only. They do not change the improvement's rules or bonuses.</small>
+            <label class="tamer-manager-config__checkbox"><input name="grantOnTaming" type="checkbox" {{#if draft.grantOnTaming}}checked{{/if}}><span>Grant automatically when tamed (no improvement slots)</span></label>
+            <small>Grant-on-taming automatically selects this improvement for matching companion identifiers. Its configured slot cost is ignored for this automatic grant.</small>
           </fieldset>
         </div>
         <footer class="tamer-manager-config__footer"><span>Changes are validated before they are written to the world.</span><button type="button" data-action="saveOption"><i class="fa-solid fa-floppy-disk"></i> Save</button></footer>

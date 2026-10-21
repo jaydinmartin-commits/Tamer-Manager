@@ -9,7 +9,8 @@ import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequired
 import { selectedImprovementDisplay } from "../scripts/data/companion-improvement-display.js";
 import { CompanionOptionDefinition } from "../scripts/data/companion-option-definition.js";
 import { CompanionOptions } from "../scripts/data/companion-options.js";
-import { reconcileGrowthHitDie, syncImprovementSheetItems } from "../scripts/data/companion-improvement-sheet-sync.js";
+import { TamerCompanionSummary } from "../scripts/data/tamer-companion-summary.js";
+import { applyNewImprovementAdvancements, reconcileGrowthHitDie, syncImprovementSheetItems } from "../scripts/data/companion-improvement-sheet-sync.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
 
@@ -56,6 +57,25 @@ const option = (id, extra = {}) => ({
   prerequisiteIds: [], replacesId: null, treeId: null, metadata: {}, ...extra
 });
 
+await test("D&D 5e size abbreviations normalize for Tamer eligibility", () => {
+  const aliases = [
+    ["Tiny", "tiny"], ["SM", "small"], ["Med", "medium"],
+    ["LG", "large"], ["Huge", "huge"], ["GRG", "gargantuan"]
+  ];
+  for (const [input, expected] of aliases) {
+    assert(TamerCompanionSummary.sizeRank(input) === TamerCompanionSummary.sizeRank(expected),
+      `Size alias ${input} should normalize to ${expected}.`);
+  }
+  assert(TamerCompanionSummary.sizeRank("not-a-size") === -1,
+    "Unknown size codes must remain invalid rather than being guessed.");
+
+  const tamer = { items: [{ type: "class", name: "Tamer", system: { levels: 10 } }] };
+  const wolf = { name: "Wolf", system: { traits: { size: "sm" }, details: { cr: 0.25 } } };
+  const result = TamerCompanionSummary.canTame(tamer, wolf);
+  assert(result.eligible === true,
+    "A valid D&D 5e small-size abbreviation must not reject an otherwise eligible wolf.");
+});
+
 await test("improvement slot accounting honors costs, repeatable ranks, and replacements", () => {
   const definitions = [
     option("growth-i", { slotCost: 1 }),
@@ -80,6 +100,10 @@ await test("improvement slot accounting honors costs, repeatable ranks, and repl
     "Replacing a lower-tier improvement must not discount unrelated selected improvements.");
   assert(selectedImprovementSlotCost({ improvements: [{ id: "free-choice", count: 3 }] }, [option("free-choice", { slotCost: 0, repeatable: true, maxSelections: 4 })]) === 0,
     "A valid zero-slot improvement must not consume slots.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "bonded-grant", count: 1 }, { id: "growth-i", count: 1 }] }, [
+    option("bonded-grant", { slotCost: 0, grantOnTaming: true }),
+    option("growth-i", { slotCost: 1 })
+  ]) === 1, "An automatic taming grant must not consume improvement slots.");
   assert(additionalImprovementSlotCost(2, 1) === 1,
     "An upgrade should consume only the difference between its cost and the replaced improvement.");
   assert(additionalImprovementSlotCost(1, 2) === 0,

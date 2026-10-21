@@ -1,4 +1,14 @@
 const SIZE_VALUES = new Set(["tiny", "small", "medium", "large", "huge", "gargantuan"]);
+const SIZE_ALIASES = Object.freeze({
+  tiny: "tiny", sm: "small", small: "small",
+  med: "medium", medium: "medium", lg: "large", large: "large",
+  huge: "huge", grg: "gargantuan", gargantuan: "gargantuan"
+});
+
+function normalizeSize(value) {
+  const key = String(value ?? "").trim().toLowerCase();
+  return SIZE_ALIASES[key] ?? null;
+}
 
 const SUMMARY = Object.freeze([
   { level: 1,  maxCompanions: 1, maxSize: "small",      maxCR: 0.5, training: { "0.5-1": [0, 0] } },
@@ -156,7 +166,7 @@ export const TamerCompanionSummary = Object.freeze({
   canTame(tamer, companion) {
     const summary = this.forTamer(tamer);
     const cr = getCompanionCR(companion);
-    const size = String(companion?.system?.traits?.size ?? "").trim().toLowerCase();
+    const size = normalizeSize(companion?.system?.traits?.size);
 
     if (cr == null) return { eligible: false, reason: "missing-companion-cr" };
 
@@ -173,9 +183,8 @@ export const TamerCompanionSummary = Object.freeze({
   },
 
   sizeRank(size) {
-    return ["tiny", "small", "medium", "large", "huge", "gargantuan"].indexOf(
-      String(size ?? "").trim().toLowerCase()
-    );
+    const normalized = normalizeSize(size);
+    return normalized ? ["tiny", "small", "medium", "large", "huge", "gargantuan"].indexOf(normalized) : -1;
   }
 });
 

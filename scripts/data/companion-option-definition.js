@@ -38,6 +38,7 @@ export const CompanionOptionDefinition = Object.freeze({
     companionIdentifiers = [],
     displayOnManager = true,
     displayOnSheet = false,
+    grantOnTaming = false,
     metadata = {}
   } = {}) {
     if (!id) throw new Error("CompanionOptionDefinition requires an id.");
@@ -71,6 +72,7 @@ export const CompanionOptionDefinition = Object.freeze({
       treeId: treeId ? String(treeId) : null,
       displayOnManager: displayOnManager !== false,
       displayOnSheet: Boolean(displayOnSheet),
+      grantOnTaming: Boolean(grantOnTaming),
       metadata: clone(metadata ?? {})
     };
   },

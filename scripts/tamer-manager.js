@@ -4,7 +4,7 @@ import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "./data/companion-improvement-cost.js";
 import { selectedImprovementDisplay } from "./data/companion-improvement-display.js";
-import { syncImprovementSheetItems, reconcileGrowthHitDie } from "./data/companion-improvement-sheet-sync.js";
+import { syncImprovementSheetItems, reconcileGrowthHitDie, applyNewImprovementAdvancements } from "./data/companion-improvement-sheet-sync.js";
 import { ToughenUpApplication } from "./data/toughen-up-application.js";
 
 const MODULE_ID = "tamer-manager";
@@ -356,6 +356,26 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         `The companion could not be initialized (${result?.reason ?? "initialization-failed"}).`);
       return;
     }
+    const savedRecord = TamerRecords.read(this.tamer).find(item => item.id === result.record.id);
+    if (savedRecord?.improvements?.length) {
+      const definitions = CompanionOptions.byType("improvement", { companion: actor });
+      const allDefinitions = CompanionOptions.byType("improvement");
+      const warnings = [];
+      try {
+        // Automatic taming grants must run native D&D 5e advancement choices
+        // immediately. A cancelled choice remains retryable on the next save.
+        const advancement = await applyNewImprovementAdvancements(actor, [], savedRecord.improvements, definitions);
+        warnings.push(...advancement.warnings);
+        const growth = await reconcileGrowthHitDie(actor, savedRecord.improvements, definitions);
+        if (growth.warning) warnings.push(growth.warning);
+        const sheetSync = await syncImprovementSheetItems(actor, savedRecord.improvements, definitions, allDefinitions);
+        warnings.push(...sheetSync.warnings);
+      } catch (error) {
+        console.error("Tamer Manager | Automatic taming-improvement sync failed.", error);
+        warnings.push("An automatically granted improvement needs sheet synchronization; reopen and save the companion's improvements to retry.");
+      }
+      if (warnings.length) ui.notifications.warn(warnings.join(" "));
+    }
     await this.render({ force: true });
   }
 
@@ -492,7 +512,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const remaining = Math.max(0, maximum - selectedCount);
       const requiredSlots = additionalImprovementSlotCost(definition.slotCost, replacedCost);
       const cap = definition.repeatable ? (definition.maxSelections ?? maximum) : 1;
-      const disabled = !isSelected && (!levelMet || !prerequisitesMet || !replacementMet || remaining < requiredSlots);
+      const automaticGrant = definition.grantOnTaming === true;
+      const disabled = automaticGrant || (!isSelected && (!levelMet || !prerequisitesMet || !replacementMet || remaining < requiredSlots));
       const disabledReason = !isSelected
         ? (!levelMet
           ? "Tamer level or companion restriction not met"
@@ -566,6 +587,11 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
     try {
+      const advancementResult = await applyNewImprovementAdvancements(actor, record.improvements ?? [], result, definitions);
+      if (advancementResult.warnings.length) {
+        ui.notifications.warn("Improvement selections were not saved: " + advancementResult.warnings.join(" "));
+        return;
+      }
       const latest = TamerRecords.read(this.tamer);
       if (!latest.some(item => item.id === recordId)) throw new Error("Companion relationship changed before saving.");
       const saved = await TamerRecords.write(this.tamer, latest.map(item => item.id === recordId
