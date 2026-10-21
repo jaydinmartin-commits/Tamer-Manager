@@ -745,3 +745,202 @@
 .tamer-manager__root .tamer-manager__vessel-actions {
   min-width: 0;
 }
+
+
+/* Reference-sketch sheet layout: compact top toolbar, roomy companion cards,
+   and controls kept on a dedicated bottom rail. */
+.tamer-manager__root .tamer-manager__header.is-sheet-tab {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) auto;
+  align-items: center;
+  gap: .75rem 1rem;
+  padding: .45rem .25rem .85rem;
+  border-bottom: 1px solid var(--tm-border);
+}
+.tamer-manager__root .tamer-manager__sheet-paradigm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: .15rem;
+  min-width: 0;
+  min-height: 3.4rem;
+}
+.tamer-manager__root .tamer-manager__eyebrow {
+  color: var(--tm-muted);
+  font-size: .76rem;
+  font-weight: 700;
+  letter-spacing: .035em;
+}
+.tamer-manager__root .tamer-manager__sheet-paradigm > strong {
+  font-size: .95rem;
+  font-weight: 500;
+}
+.tamer-manager__root .tamer-manager__sheet-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: .45rem .8rem;
+  min-width: 0;
+}
+.tamer-manager__root .tamer-manager__sheet-toolbar .tamer-manager__capacity {
+  white-space: nowrap;
+  margin: 0;
+  font-size: .82rem;
+}
+.tamer-manager__root .tamer-manager__sheet-toolbar .tamer-manager__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+.tamer-manager__root .tamer-manager__sheet-toolbar button {
+  white-space: nowrap;
+}
+.tamer-manager__root .tamer-manager__body {
+  padding: .75rem .1rem .65rem;
+}
+.tamer-manager__root .tamer-manager__companions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: .8rem;
+}
+.tamer-manager__root .tamer-manager__card {
+  min-height: 15rem;
+  grid-template-columns: clamp(4.25rem, 31%, 6rem) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  column-gap: .7rem;
+  row-gap: .65rem;
+  padding: .7rem;
+  background: var(--color-cool-5, var(--tm-surface));
+}
+.tamer-manager__root .tamer-manager__portrait-wrap {
+  align-self: start;
+  width: 100%;
+  max-width: 6rem;
+  aspect-ratio: 4 / 5;
+}
+.tamer-manager__root .tamer-manager__portrait {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 4.25rem;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+}
+.tamer-manager__root .tamer-manager__details {
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+}
+.tamer-manager__root .tamer-manager__card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .35rem;
+  padding-bottom: .4rem;
+}
+.tamer-manager__root .tamer-manager__identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tamer-manager__root .tamer-manager__identity strong {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+.tamer-manager__root .tamer-manager__improvement-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: .2rem;
+  min-width: 2.5rem;
+  min-height: 2rem;
+  padding: .2rem .4rem;
+  white-space: nowrap;
+  font-size: .78rem;
+}
+.tamer-manager__root .tamer-manager__card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .3rem .55rem;
+  color: var(--tm-muted);
+  font-size: .75rem;
+}
+.tamer-manager__root .tamer-manager__summoned-label {
+  padding: .08rem .35rem;
+  border: 1px solid var(--color-border-highlight, #b89b59);
+  border-radius: .2rem;
+  color: var(--tm-text);
+  font-weight: 700;
+}
+.tamer-manager__root .tamer-manager__card-vessel-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .3rem;
+  min-width: 0;
+  margin-top: auto;
+}
+.tamer-manager__root .tamer-manager__vessel-name {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tm-muted);
+  font-size: .78rem;
+}
+.tamer-manager__root .tamer-manager__card-vessel-row button {
+  min-height: 1.8rem;
+  padding: .15rem .45rem;
+  font-size: .76rem;
+}
+.tamer-manager__root .tamer-manager__selected-improvements {
+  gap: .2rem;
+  margin: .1rem 0 .2rem;
+}
+.tamer-manager__root .tamer-manager__selected-improvements li {
+  font-size: .7rem;
+  padding: .1rem .35rem;
+}
+.tamer-manager__root .tamer-manager__card-actions {
+  align-items: center;
+  justify-content: flex-end;
+  gap: .35rem;
+  padding-top: .5rem;
+  border-top: 1px solid var(--tm-border);
+}
+.tamer-manager__root .tamer-manager__card-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  min-height: 1.9rem;
+  padding: .2rem .5rem;
+  white-space: nowrap;
+  font-size: .76rem;
+}
+.tamer-manager__root .tamer-manager__card.is-summoned-bespoke {
+  border-width: 2px;
+  border-color: var(--color-border-highlight, #b89b59);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border-highlight, #b89b59) 45%, transparent);
+}
+@media (max-width: 760px) {
+  .tamer-manager__root .tamer-manager__header.is-sheet-tab {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tamer-manager__root .tamer-manager__sheet-toolbar {
+    justify-content: space-between;
+  }
+  .tamer-manager__root .tamer-manager__companions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tamer-manager__root .tamer-manager__card {
+    min-height: 12rem;
+    grid-template-columns: clamp(4rem, 23%, 5.25rem) minmax(0, 1fr);
+  }
+}
