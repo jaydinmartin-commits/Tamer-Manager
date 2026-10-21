@@ -9,6 +9,7 @@ import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequired
 import { selectedImprovementDisplay } from "../scripts/data/companion-improvement-display.js";
 import { CompanionOptionDefinition } from "../scripts/data/companion-option-definition.js";
 import { CompanionOptions } from "../scripts/data/companion-options.js";
+import { TamerCompanionSummary } from "../scripts/data/tamer-companion-summary.js";
 import { reconcileGrowthHitDie, syncImprovementSheetItems } from "../scripts/data/companion-improvement-sheet-sync.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
@@ -54,6 +55,25 @@ const option = (id, extra = {}) => ({
   requirements: { tamerLevel: 1, companionIdentifiers: [] },
   repeatable: false, maxSelections: null, slotCost: 1, pointCost: 0,
   prerequisiteIds: [], replacesId: null, treeId: null, metadata: {}, ...extra
+});
+
+await test("D&D 5e size abbreviations normalize for Tamer eligibility", () => {
+  const aliases = [
+    ["Tiny", "tiny"], ["SM", "small"], ["Med", "medium"],
+    ["LG", "large"], ["Huge", "huge"], ["GRG", "gargantuan"]
+  ];
+  for (const [input, expected] of aliases) {
+    assert(TamerCompanionSummary.sizeRank(input) === TamerCompanionSummary.sizeRank(expected),
+      `Size alias ${input} should normalize to ${expected}.`);
+  }
+  assert(TamerCompanionSummary.sizeRank("not-a-size") === -1,
+    "Unknown size codes must remain invalid rather than being guessed.");
+
+  const tamer = { items: [{ type: "class", name: "Tamer", system: { levels: 10 } }] };
+  const wolf = { name: "Wolf", system: { traits: { size: "sm" }, details: { cr: 0.25 } } };
+  const result = TamerCompanionSummary.canTame(tamer, wolf);
+  assert(result.eligible === true,
+    "A valid D&D 5e small-size abbreviation must not reject an otherwise eligible wolf.");
 });
 
 await test("improvement slot accounting honors costs, repeatable ranks, and replacements", () => {
