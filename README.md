@@ -24,7 +24,7 @@ Implemented areas include the standalone Companion Manager, character-sheet head
 
 Improvement advancement handling is under active correction. In particular, removing a managed improvement that granted a native D&D 5e advancement must reverse that advancement's applied effects—not merely delete the source Item. The current candidate for that fix is tracked in [PR #31](https://github.com/jaydinmartin-commits/Tamer-Manager/pull/31); it is not part of the published v0.1.45 release.
 
-The Companion tab layout correction is tracked separately in [PR #30](https://github.com/jaydinmartin-commits/Tamer-Manager/pull/30). It must be merged and included in a release before it can be tested as a published fix.
+The Companion tab layout correction was merged in PR #30 and is included in the published v0.1.46 release. Live Foundry sheet alignment still needs verification.
 
 ## Validation
 
