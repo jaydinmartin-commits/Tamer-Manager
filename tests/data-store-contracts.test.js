@@ -80,6 +80,10 @@ await test("improvement slot accounting honors costs, repeatable ranks, and repl
     "Replacing a lower-tier improvement must not discount unrelated selected improvements.");
   assert(selectedImprovementSlotCost({ improvements: [{ id: "free-choice", count: 3 }] }, [option("free-choice", { slotCost: 0, repeatable: true, maxSelections: 4 })]) === 0,
     "A valid zero-slot improvement must not consume slots.");
+  assert(selectedImprovementSlotCost({ improvements: [{ id: "bonded-grant", count: 1 }, { id: "growth-i", count: 1 }] }, [
+    option("bonded-grant", { slotCost: 0, grantOnTaming: true }),
+    option("growth-i", { slotCost: 1 })
+  ]) === 1, "An automatic taming grant must not consume improvement slots.");
   assert(additionalImprovementSlotCost(2, 1) === 1,
     "An upgrade should consume only the difference between its cost and the replaced improvement.");
   assert(additionalImprovementSlotCost(1, 2) === 0,
