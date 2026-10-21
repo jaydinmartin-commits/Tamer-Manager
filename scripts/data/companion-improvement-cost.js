@@ -16,7 +16,7 @@ export function selectedImprovementSlotCost(record, definitions) {
   }
   return [...counts.entries()].reduce((total, [id, count]) => {
     const definition = byId.get(id);
-    if (!definition) return total;
+    if (!definition || definition.grantOnTaming) return total;
     const replacedBySelectedUpgrade = [...counts.keys()].some(selectedId => byId.get(selectedId)?.replacesId === id);
     return replacedBySelectedUpgrade ? total : total + Math.max(0, Number(definition.slotCost) || 0) * count;
   }, 0);
