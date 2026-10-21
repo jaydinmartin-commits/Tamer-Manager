@@ -492,7 +492,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const remaining = Math.max(0, maximum - selectedCount);
       const requiredSlots = additionalImprovementSlotCost(definition.slotCost, replacedCost);
       const cap = definition.repeatable ? (definition.maxSelections ?? maximum) : 1;
-      const disabled = !isSelected && (!levelMet || !prerequisitesMet || !replacementMet || remaining < requiredSlots);
+      const automaticGrant = definition.grantOnTaming === true;
+      const disabled = automaticGrant || (!isSelected && (!levelMet || !prerequisitesMet || !replacementMet || remaining < requiredSlots));
       const disabledReason = !isSelected
         ? (!levelMet
           ? "Tamer level or companion restriction not met"
