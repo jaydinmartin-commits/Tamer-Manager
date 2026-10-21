@@ -1078,3 +1078,13 @@
   max-height: 100%;
 }
 
+
+
+/* Compact improvement picker: keep the window small and scroll its options. */
+.tamer-manager__improvement-dialog { display: flex; flex-direction: column; gap: 0.45rem; min-height: 0; max-height: min(390px, 65vh); overflow: hidden; }
+.tamer-manager__improvement-dialog > p { flex: 0 0 auto; margin: 0; font-size: 0.82rem; }
+.tamer-manager__improvement-dialog .tamer-manager__legacy-note { flex: 0 0 auto; max-height: 5rem; overflow: auto; padding: 0.4rem 0.5rem; font-size: 0.76rem; }
+.tamer-manager__improvement-dialog .tamer-manager__improvement-list { flex: 1 1 auto; min-height: 0; max-height: 300px; overflow-y: auto; overscroll-behavior: contain; }
+.tamer-manager__improvement-dialog .tamer-manager__improvement-option { gap: 0.4rem; padding: 0.35rem 0.45rem; margin-bottom: 0.25rem; font-size: 0.82rem; }
+.tamer-manager__improvement-dialog .tamer-manager__improvement-option small { font-size: 0.72rem; line-height: 1.25; }
+@media (max-width: 520px) { .tamer-manager__improvement-dialog { max-height: 62vh; } .tamer-manager__improvement-dialog .tamer-manager__improvement-list { max-height: 45vh; } }

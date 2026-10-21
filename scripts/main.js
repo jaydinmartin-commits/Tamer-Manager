@@ -115,15 +115,38 @@ Hooks.once("init", () => {
         scrollable: [""]
       }
     };
-    CharacterActorSheet.TABS = [
-      ...CharacterActorSheet.TABS,
-      {
-        tab: "companions",
-        label: "Companions",
-        icon: "fa-solid fa-paw",
-        condition: actor => TamerRecords.isTamer(actor)
+    const companionTab = {
+      tab: "companions",
+      label: "Companions",
+      icon: "fa-solid fa-paw",
+      condition: actor => TamerRecords.isTamer(actor)
+    };
+    const existingTabs = CharacterActorSheet.TABS;
+    if (Array.isArray(existingTabs)) {
+      CharacterActorSheet.TABS = existingTabs.some(tab => tab?.tab === "companions")
+        ? existingTabs : [...existingTabs, companionTab];
+    } else if (existingTabs && typeof existingTabs === "object") {
+      const groupedKey = Object.keys(existingTabs).find(key => Array.isArray(existingTabs[key]?.tabs));
+      if (groupedKey) {
+        const group = existingTabs[groupedKey];
+        CharacterActorSheet.TABS = {
+          ...existingTabs,
+          [groupedKey]: {
+            ...group,
+            tabs: group.tabs.some(tab => tab?.tab === "companions" || tab?.id === "companions")
+              ? group.tabs : [...group.tabs, companionTab]
+          }
+        };
+      } else {
+        console.error("Tamer Manager | Unsupported CharacterActorSheet.TABS shape; preserving native tabs.", existingTabs);
+        delete CharacterActorSheet.__tamerManagerTabRegistered;
+        return;
       }
-    ];
+    } else {
+      console.error("Tamer Manager | CharacterActorSheet.TABS is unavailable; preserving native tabs.");
+      delete CharacterActorSheet.__tamerManagerTabRegistered;
+      return;
+    }
 
     const originalPreparePartContext = CharacterActorSheet.prototype._preparePartContext;
     CharacterActorSheet.prototype._preparePartContext = async function(partId, context, options) {

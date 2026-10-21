@@ -67,6 +67,12 @@ function getCompanionCR(actor) {
   return normalizeCR(actor?.system?.details?.cr ?? actor?.system?.details?.challenge);
 }
 
+// dnd5e v6 uses abbreviated size keys such as med and lg.
+function normalizeSize(value) {
+  const size = String(value ?? "").trim().toLowerCase();
+  const aliases = { tiny: "tiny", t: "tiny", sm: "small", s: "small", small: "small", med: "medium", m: "medium", medium: "medium", lg: "large", l: "large", large: "large", huge: "huge", grg: "gargantuan", gargantuan: "gargantuan" };
+  return aliases[size] ?? "";
+}
 function getCRBand(cr) {
   const value = normalizeCR(cr);
   // CRs below 1/2 use the same lowest training tier as CR 1/2.
@@ -156,7 +162,7 @@ export const TamerCompanionSummary = Object.freeze({
   canTame(tamer, companion) {
     const summary = this.forTamer(tamer);
     const cr = getCompanionCR(companion);
-    const size = String(companion?.system?.traits?.size ?? "").trim().toLowerCase();
+    const size = normalizeSize(companion?.system?.traits?.size);
 
     if (cr == null) return { eligible: false, reason: "missing-companion-cr" };
 
