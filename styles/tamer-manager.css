@@ -1024,7 +1024,8 @@
    selectors also matched ancestor tab containers and interfered with sibling tabs. */
 .application .tab-body#companions,
 .application .tab-body[data-tab="companions"] {
-  display: flex;
+  /* Let Foundry hide inactive ApplicationV2 parts. Forcing display:flex on
+     every tab body can make this panel overlap adjacent sheet tabs. */
   flex-direction: column;
   flex: 1 1 0;
   width: 100%;
@@ -1034,6 +1035,10 @@
   max-height: 100%;
   overflow: hidden;
   box-sizing: border-box;
+}
+.application .tab-body#companions.active,
+.application .tab-body[data-tab="companions"].active {
+  display: flex;
 }
 .application .tab-body#companions > .tamer-manager,
 .application .tab-body#companions > .tamer-manager__root,
