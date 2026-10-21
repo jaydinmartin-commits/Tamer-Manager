@@ -1022,6 +1022,7 @@
 
 /* Scope sizing to the Companion tab itself. Broad :has(.tamer-manager)
    selectors also matched ancestor tab containers and interfered with sibling tabs. */
+.application .tab-body#companions,
 .application .tab-body[data-tab="companions"] {
   display: flex;
   flex-direction: column;
@@ -1034,6 +1035,8 @@
   overflow: hidden;
   box-sizing: border-box;
 }
+.application .tab-body#companions > .tamer-manager,
+.application .tab-body#companions > .tamer-manager__root,
 .application .tab-body[data-tab="companions"] > .tamer-manager,
 .application .tab-body[data-tab="companions"] > .tamer-manager__root {
   display: flex;
@@ -1047,6 +1050,7 @@
   overflow: hidden;
   box-sizing: border-box;
 }
+.application .tab-body#companions .tamer-manager__body,
 .application .tab-body[data-tab="companions"] .tamer-manager__body {
   flex: 1 1 0;
   min-width: 0;
