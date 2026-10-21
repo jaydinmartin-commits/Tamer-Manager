@@ -31,7 +31,7 @@ export function selectedImprovementDisplay(record, definitions = []) {
         count,
         missingDefinition: !definition,
         label: definition
-          ? (repeatable && count > 1 ? `${name} ×${count}` : name)
+          ? (count > 1 ? `${name} ×${count}` : name)
           : `${name} (definition missing)`
       };
     });
