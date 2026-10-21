@@ -186,7 +186,7 @@ export async function syncImprovementSheetItems(actor, selections, definitions, 
     .filter(item => {
       const id = String(item.getFlag(MODULE_ID, "managedImprovementId") ?? "");
       return counts.has(id) &&
-        hasAdvancementData(item.system?.advancement));
+        hasAdvancementData(item.system?.advancement);
     })
     .map(item => String(item.getFlag(MODULE_ID, "managedImprovementId")));
   const desiredIds = new Set([
