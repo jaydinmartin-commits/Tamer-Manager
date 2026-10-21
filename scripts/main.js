@@ -156,9 +156,13 @@ Hooks.once("init", () => {
       tamerRemoveCompanion: TamerManager._onRemoveCompanion,
       tamerOpenCompanion: TamerManager._onOpenCompanion,
       tamerToggleSummon: TamerManager._onToggleSummon,
+      tamerOpenCompanion: TamerManager._onOpenCompanion,
       tamerAssignVessel: TamerManager._onAssignVessel,
       tamerClearVessel: TamerManager._onClearVessel,
-      tamerManageImprovements: TamerManager._onManageImprovements
+      tamerManageImprovements: TamerManager._onManageImprovements,
+      tamerRemoveCompanion: TamerManager._onRemoveCompanion,
+      tamerRefresh: TamerManager._onRefresh,
+      tamerAddCompanion: TamerManager._onAddCompanion
     };
     CharacterActorSheet.DEFAULT_OPTIONS = {
       ...sheetOptions,
