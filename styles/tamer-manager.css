@@ -1020,13 +1020,9 @@
   }
 }
 
-/* Foundry v14 / dnd5e v6 CharacterActorSheet tab-part sizing.
-   The PARTS entry mounts the manager inside the sheet's tab-body wrapper;
-   constrain that wrapper to the actual sheet content area so the manager does
-   not collapse to the bottom edge of the character sheet. */
-.application.dnd5e2.sheet.actor .tab-body[data-tab="companions"],
-.application.dnd5e2.sheet.actor .tab-body#tab[data-tab="companions"],
-.application.dnd5e2.sheet.actor .tab-body:has(> .tamer-manager) {
+/* Scope sizing to the Companion tab itself. Broad :has(.tamer-manager)
+   selectors also matched ancestor tab containers and interfered with sibling tabs. */
+.application .tab-body[data-tab="companions"] {
   display: flex;
   flex-direction: column;
   flex: 1 1 0;
@@ -1038,10 +1034,11 @@
   overflow: hidden;
   box-sizing: border-box;
 }
-.application.dnd5e2.sheet.actor .tab-body:has(> .tamer-manager) > .tamer-manager,
-.application.dnd5e2.sheet.actor .tab-body:has(> .tamer-manager) > .tamer-manager__root {
+.application .tab-body[data-tab="companions"] > .tamer-manager,
+.application .tab-body[data-tab="companions"] > .tamer-manager__root {
   display: flex;
   flex: 1 1 0;
+  align-self: stretch;
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -1050,73 +1047,11 @@
   overflow: hidden;
   box-sizing: border-box;
 }
-.application.dnd5e2.sheet.actor .tab-body:has(> .tamer-manager) .tamer-manager__body {
+.application .tab-body[data-tab="companions"] .tamer-manager__body {
   flex: 1 1 0;
+  min-width: 0;
   min-height: 0;
   max-height: none;
   overflow-x: hidden;
   overflow-y: auto;
-}
-
-/* Fallback for dnd5e v6 sheet markup where the ApplicationV2 tab wrapper does
-   not carry the legacy dnd5e2/actor class combination. The Companion part is
-   the only tab body containing this module root, so scope by that stable marker. */
-.tab-body:has(> .tamer-manager__root),
-.tab-body:has(> .tamer-manager) {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 0;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  max-height: 100%;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-.tab-body:has(> .tamer-manager__root) > .tamer-manager__root,
-.tab-body:has(> .tamer-manager) > .tamer-manager {
-  flex: 1 1 0;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  max-height: 100%;
-}
-
-
-
-/* Foundry v14 / dnd5e v6: the sheet's tab part is not guaranteed to be a
-   direct child of .tab-body. Allow the actual tab panel and all wrappers
-   between it and the manager to stretch, rather than collapsing to content
-   height and leaving the manager as a narrow strip at the bottom. */
-.application .tab-body:has(.tamer-manager__root),
-.application .tab-body:has(.tamer-manager) {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  max-height: 100%;
-  overflow: hidden;
-}
-.application .tab-body:has(.tamer-manager__root) .tamer-manager__root,
-.application .tab-body:has(.tamer-manager) .tamer-manager {
-  display: flex;
-  flex: 1 1 auto;
-  align-self: stretch;
-  min-width: 0;
-  min-height: 0;
-  width: 100%;
-  height: 100%;
-  max-height: 100%;
-  overflow: hidden;
-}
-.application .tab-body:has(.tamer-manager__root) .tamer-manager__body,
-.application .tab-body:has(.tamer-manager) .tamer-manager__body {
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 0;
-  max-height: none;
-  overflow: auto;
 }
