@@ -6,7 +6,7 @@ import { TamerRecords } from "../scripts/data/tamer-records.js";
 import { CompanionRecord } from "../scripts/data/companion-record.js";
 import { CompanionInitializationApplication } from "../scripts/data/companion-initialization-application.js";
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "../scripts/data/companion-improvement-cost.js";
-import { selectedImprovementDisplay } from "../scripts/data/companion-improvement-display.js";
+import { selectedImprovementDisplay, selectedAdvancementChoiceLabels } from "../scripts/data/companion-improvement-display.js";
 import { CompanionOptionDefinition } from "../scripts/data/companion-option-definition.js";
 import { CompanionOptions } from "../scripts/data/companion-options.js";
 import { TamerCompanionSummary } from "../scripts/data/tamer-companion-summary.js";
@@ -55,6 +55,34 @@ const option = (id, extra = {}) => ({
   requirements: { tamerLevel: 1, companionIdentifiers: [] },
   repeatable: false, maxSelections: null, slotCost: 1, pointCost: 0,
   prerequisiteIds: [], replacesId: null, treeId: null, metadata: {}, ...extra
+});
+
+await test("advancement choice labels resolve to readable options", () => {
+  const actor = { items: [{
+    system: { advancement: { a: { configuration: { items: { swim: { name: "Swim Speed" } } }, value: ["swim"] } } },
+    getFlag(scope, key) { return scope === "tamer-manager" && key === "managedImprovementId" ? "speed-training" : undefined; }
+  }] };
+  const labels = selectedAdvancementChoiceLabels(actor, "speed-training");
+  assert(labels.includes("Swim Speed"), "The companion card should show the readable selected choice.");
+});
+
+await test("removing an advancement improvement deletes its managed Item", async () => {
+  const deleted = [];
+  const advancementItem = {
+    id: "managed-war-training",
+    system: { advancement: { choice: { type: "ItemChoice", value: ["light-armor"] } } },
+    getFlag(scope, key) {
+      if (scope !== "tamer-manager") return undefined;
+      return ({ managedImprovementId: "war-training", managedImprovementRank: 1, advancementWorkflow: false })[key];
+    }
+  };
+  const actor = {
+    items: [advancementItem],
+    async deleteEmbeddedDocuments(type, ids) { deleted.push(...ids); }
+  };
+  const result = await syncImprovementSheetItems(actor, [], [], [{ id: "war-training", name: "War Training" }]);
+  assert(deleted.includes("managed-war-training"), "Deselected advancement Items must be deleted immediately.");
+  assert(result.warnings.length === 0, "Successful cleanup should not produce a warning.");
 });
 
 await test("D&D 5e v6 object-shaped advancement data is recognized", () => {

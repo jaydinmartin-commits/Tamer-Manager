@@ -52,7 +52,7 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
         Number(item.getFlag?.(MODULE_ID, "managedImprovementRank")) === rank &&
         item.getFlag?.(MODULE_ID, "advancementWorkflow") !== true
       );
-      if (rank <= oldCount && completedRank) continue;
+      if (completedRank) continue;
       // Record existing documents before opening the workflow. An interrupted
       // rank may already have a pending managed Item, so matching only by flags
       // could mistakenly mark that stale Item complete instead of the new result.
@@ -198,12 +198,22 @@ export async function syncImprovementSheetItems(actor, selections, definitions, 
     ...advancementOwnedIds
   ]);
   const removals = existing.filter(item => !desiredIds.has(String(item.getFlag(MODULE_ID, "managedImprovementId"))));
-  if (removals.length) {
+  // Advancement Items own selected choices/effects. Remove deselected
+  // improvements and ranks above the selected count.
+  const excessAdvancementRanks = existing.filter(item => {
+    if (item.getFlag(MODULE_ID, "advancementWorkflow") === true) return true;
+    const id = String(item.getFlag(MODULE_ID, "managedImprovementId") ?? "");
+    if (!id || !hasAdvancementData(item.system?.advancement)) return false;
+    const rank = Number(item.getFlag(MODULE_ID, "managedImprovementRank"));
+    return !counts.has(id) || (Number.isFinite(rank) && rank > (counts.get(id) ?? 0));
+  });
+  const removalIds = [...new Set([...removals, ...excessAdvancementRanks].map(item => item.id).filter(Boolean))];
+  if (removalIds.length) {
     try {
-      await actor.deleteEmbeddedDocuments("Item", removals.map(item => item.id));
+      await actor.deleteEmbeddedDocuments("Item", removalIds);
     } catch (error) {
-      console.error("Tamer Manager | Failed to remove deselected sheet improvements.", error);
-      warnings.push("One or more deselected managed improvements could not be removed from the companion sheet.");
+      console.error("Tamer Manager | Failed to remove deselected managed improvements and advancement ranks.", error);
+      warnings.push("One or more removed improvement advancements could not be cleaned up from the companion.");
     }
   }
   return { warnings };
