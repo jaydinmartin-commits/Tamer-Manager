@@ -4,7 +4,7 @@ import { CompanionOptions } from "./data/companion-options.js";
 import { TamerCompanionSummary } from "./data/tamer-companion-summary.js";
 import { selectedImprovementSlotCost, additionalImprovementSlotCost, hasRequiredImprovementReplacement } from "./data/companion-improvement-cost.js";
 import { selectedImprovementDisplay } from "./data/companion-improvement-display.js";
-import { syncImprovementSheetItems, reconcileGrowthHitDie } from "./data/companion-improvement-sheet-sync.js";
+import { syncImprovementSheetItems, reconcileGrowthHitDie, applyNewImprovementAdvancements } from "./data/companion-improvement-sheet-sync.js";
 import { ToughenUpApplication } from "./data/toughen-up-application.js";
 
 const MODULE_ID = "tamer-manager";
@@ -583,6 +583,11 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
     try {
+      const advancementResult = await applyNewImprovementAdvancements(actor, record.improvements ?? [], result, definitions);
+      if (advancementResult.warnings.length) {
+        ui.notifications.warn("Improvement selections were not saved: " + advancementResult.warnings.join(" "));
+        return;
+      }
       const latest = TamerRecords.read(this.tamer);
       if (!latest.some(item => item.id === recordId)) throw new Error("Companion relationship changed before saving.");
       const saved = await TamerRecords.write(this.tamer, latest.map(item => item.id === recordId
