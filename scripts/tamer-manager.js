@@ -136,21 +136,12 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
             return `${selectedSlots} / ${available}`;
           } catch { return `${selectedSlots} / —`; }
         })(),
-        challengeRatingLabel: (() => {
-          const cr = actor?.system?.details?.cr ?? actor?.system?.details?.challenge;
-          if (cr === 0 || cr === "0") return "CR 0";
-          if (cr === null || cr === undefined || cr === "") return "—";
-          const n = Number(cr);
-          if (Number.isFinite(n)) {
-            const common = [[1/8,"1/8"],[1/4,"1/4"],[1/2,"1/2"],[1/3,"1/3"]];
-            const fraction = common.find(([value]) => Math.abs(value - n) < 0.0001);
-            return `CR ${fraction?.[1] ?? n}`;
-          }
-          return `CR ${String(cr)}`;
+        sizeLabel: (() => {
+          const raw = String(actor?.system?.traits?.size ?? "").trim().toLowerCase();
+          const aliases = { tiny: "tiny", sm: "small", small: "small", med: "medium", medium: "medium",
+            lg: "large", large: "large", huge: "huge", grg: "gargantuan", gargantuan: "gargantuan" };
+          return aliases[raw] ?? raw;
         })(),
-        sizeLabel: actor?.system?.traits?.size
-          ? String(actor.system.traits.size).replace(/^./, value => value.toUpperCase())
-          : "",
         availableImprovements: actor && tamerLevel >= 1 ? (() => { try { return TamerCompanionSummary.trainingFor(tamerLevel, actor.system?.details?.cr ?? actor.system?.details?.challenge).improvements; } catch { return null; } })() : null,
         vesselName: record.vesselName || (record.vesselUuid ? "Assigned vessel" : "No vessel assigned"),
         isSummoned: record.status === "summoned",
@@ -159,9 +150,23 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         actorExists: Boolean(actor),
         actorUuid: record.actorUuid ?? "",
         portrait: actor?.img ?? "icons/svg/mystery-man.svg",
-        actorType: typeof actor?.system?.details?.type?.value === "string"
-          ? actor.system.details.type.value
-          : (typeof actor?.system?.details?.type === "string" ? actor.system.details.type : actor?.type ?? null),
+        actorType: (() => {
+          const type = typeof actor?.system?.details?.type?.value === "string"
+            ? actor.system.details.type.value
+            : (typeof actor?.system?.details?.type === "string" ? actor.system.details.type : actor?.type ?? "");
+          return String(type).trim().toLowerCase();
+        })(),
+        creatureTypeLabel: [
+          (() => {
+            const raw = String(actor?.system?.traits?.size ?? "").trim().toLowerCase();
+            const aliases = { tiny: "tiny", sm: "small", small: "small", med: "medium", medium: "medium",
+              lg: "large", large: "large", huge: "huge", grg: "gargantuan", gargantuan: "gargantuan" };
+            return aliases[raw] ?? raw;
+          })(),
+          typeof actor?.system?.details?.type?.value === "string"
+            ? actor.system.details.type.value
+            : (typeof actor?.system?.details?.type === "string" ? actor.system.details.type : actor?.type ?? "")
+        ].map(value => String(value ?? "").trim().toLowerCase()).filter(Boolean).join(" "),
         challengeRating: actor?.system?.details?.cr ?? null,
         size: actor?.system?.traits?.size ?? null,
         hitPoints: actor?.system?.attributes?.hp?.value ?? null,

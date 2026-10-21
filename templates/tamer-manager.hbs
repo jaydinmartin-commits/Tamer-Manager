@@ -61,7 +61,7 @@
               <header class="tamer-manager__card-header">
                 <div class="tamer-manager__identity">
                   <strong>{{actorName}}</strong>
-                  <span class="tamer-manager__type">{{#if actorType}}{{actorType}}{{else}}Companion{{/if}}</span>
+                  <span class="tamer-manager__type">{{#if creatureTypeLabel}}{{creatureTypeLabel}}{{else}}companion{{/if}}</span>
                 </div>
                 <button class="tamer-manager__improvement-button" type="button" data-action="{{#if inSheetTab}}tamerManageImprovements{{else}}manageImprovements{{/if}}" data-record-id="{{id}}" title="Manage companion improvements" aria-label="Manage companion improvements">
                   <i class="fa-solid fa-arrow-up-right-from-square"></i><span>{{improvementProgressLabel}}</span>
@@ -73,8 +73,6 @@
                   <div><span class="tamer-manager__stat-label">AC</span><strong>{{#if armorClass}}{{armorClass}}{{else}}—{{/if}}</strong></div>
                 </div>
                 <div class="tamer-manager__card-meta">
-                  <span>{{#if challengeRatingLabel}}CR {{challengeRatingLabel}}{{else}}CR —{{/if}}</span>
-                  {{#if sizeLabel}}<span>{{sizeLabel}}</span>{{/if}}
                   {{#if isSummoned}}<span class="tamer-manager__summoned-label">Summoned</span>{{/if}}
                 </div>
                 {{#if hasImprovementDisplay}}

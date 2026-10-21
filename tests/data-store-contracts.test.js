@@ -10,7 +10,7 @@ import { selectedImprovementDisplay } from "../scripts/data/companion-improvemen
 import { CompanionOptionDefinition } from "../scripts/data/companion-option-definition.js";
 import { CompanionOptions } from "../scripts/data/companion-options.js";
 import { TamerCompanionSummary } from "../scripts/data/tamer-companion-summary.js";
-import { applyNewImprovementAdvancements, reconcileGrowthHitDie, syncImprovementSheetItems } from "../scripts/data/companion-improvement-sheet-sync.js";
+import { applyNewImprovementAdvancements, hasAdvancementData, reconcileGrowthHitDie, syncImprovementSheetItems } from "../scripts/data/companion-improvement-sheet-sync.js";
 
 if (!globalThis.foundry) globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
 
@@ -55,6 +55,24 @@ const option = (id, extra = {}) => ({
   requirements: { tamerLevel: 1, companionIdentifiers: [] },
   repeatable: false, maxSelections: null, slotCost: 1, pointCost: 0,
   prerequisiteIds: [], replacesId: null, treeId: null, metadata: {}, ...extra
+});
+
+await test("D&D 5e v6 object-shaped advancement data is recognized", () => {
+  assert(hasAdvancementData({ "advancement-a": { type: "ItemChoice", title: "Choose a feature" } }),
+    "Object-shaped dnd5e v6 advancement data must trigger native advancement handling.");
+  assert(hasAdvancementData([{ type: "ItemChoice" }]),
+    "Legacy array-shaped advancement data remains recognized.");
+  assert(!hasAdvancementData({}),
+    "An empty advancement object must not open an empty workflow.");
+});
+
+await test("improvement display shows selected rank counts even when not repeatable", () => {
+  const entries = selectedImprovementDisplay(
+    { improvements: [{ id: "advancement-feature", count: 3 }] },
+    [option("advancement-feature", { name: "Advancement Feature", repeatable: false })]
+  );
+  assert(entries[0]?.label === "Advancement Feature ×3",
+    "The companion card must show the number of saved ranks selected.");
 });
 
 await test("D&D 5e size abbreviations normalize for Tamer eligibility", () => {

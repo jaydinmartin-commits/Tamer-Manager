@@ -1,5 +1,10 @@
 const MODULE_ID = "tamer-manager";
 
+export function hasAdvancementData(advancement) {
+  if (Array.isArray(advancement)) return advancement.length > 0;
+  return Boolean(advancement && typeof advancement === "object" && !Array.isArray(advancement) && Object.keys(advancement).length > 0);
+}
+
 /**
  * Synchronize only module-owned improvement Items. Unrelated items and manually
  * created copies are never modified or deleted by this reconciliation.
@@ -16,7 +21,7 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
       const id = typeof raw === "string" ? raw : String(raw?.id ?? "");
       if (!id) continue;
       const count = typeof raw === "string" ? 1 : Math.max(1, Math.floor(Number(raw?.count ?? raw?.rank ?? 1) || 1));
-      counts.set(id, Math.max(counts.get(id) ?? 0, count));
+      counts.set(id, (counts.get(id) ?? 0) + count);
     }
     return counts;
   };
@@ -34,7 +39,7 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
       continue;
     }
     const sourceData = source.toObject();
-    if (!Array.isArray(sourceData.system?.advancement) || !sourceData.system.advancement.length) continue;
+    if (!hasAdvancementData(sourceData.system?.advancement)) continue;
     if (!Manager?.forNewItem) {
       warnings.push("The D&D 5e advancement workflow is unavailable; " + definition.name + " was not added.");
       continue;
@@ -65,7 +70,10 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
       let manager;
       try {
         manager = Manager.forNewItem(actor, itemData);
-        if (!manager.steps?.length) continue;
+        if (!manager.steps?.length) {
+          warnings.push(definition.name + " has advancement data, but D&D 5e produced no applicable advancement steps. The selection was not saved as configured.");
+          return { warnings };
+        }
         const completed = await new Promise(resolve => {
           let settled = false;
           const finish = value => {
@@ -83,7 +91,7 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
             originalOnClose(options);
             finish(false);
           };
-          Promise.resolve(manager.render(true)).catch(error => {
+          Promise.resolve(manager.render({ force: true })).catch(error => {
             console.error("Tamer Manager | Could not open advancement workflow.", error);
             finish(false);
           });
@@ -181,7 +189,7 @@ export async function syncImprovementSheetItems(actor, selections, definitions, 
     .filter(item => {
       const id = String(item.getFlag(MODULE_ID, "managedImprovementId") ?? "");
       return counts.has(id) &&
-        (Array.isArray(item.system?.advancement) && item.system.advancement.length > 0);
+        hasAdvancementData(item.system?.advancement);
     })
     .map(item => String(item.getFlag(MODULE_ID, "managedImprovementId")));
   const desiredIds = new Set([
