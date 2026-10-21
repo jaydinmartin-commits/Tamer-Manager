@@ -4,61 +4,6 @@ const MODULE_ID = "tamer-manager";
  * Synchronize only module-owned improvement Items. Unrelated items and manually
  * created copies are never modified or deleted by this reconciliation.
  */
-/**
- * Add a newly selected improvement through the system advancement workflow.
- * D&D 5e's AdvancementManager is responsible for prompting for choices and
- * applying automatic advancement steps; createEmbeddedDocuments alone does not.
- * Existing selections are deliberately not replayed on refresh.
- */
-export async function applyNewImprovementAdvancements(actor, previousSelections, nextSelections, definitions) {
-  const byId = new Map(definitions.map(definition => [String(definition.id), definition]));
-  const counts = selections => {
-    const map = new Map();
-    for (const raw of selections ?? []) {
-      const id = typeof raw === "string" ? raw : String(raw?.id ?? "");
-      if (!id) continue;
-      const count = typeof raw === "string" ? 1 : Math.max(1, Math.floor(Number(raw?.count ?? raw?.rank ?? 1) || 1));
-      map.set(id, Math.max(map.get(id) ?? 0, count));
-    }
-    return map;
-  };
-  const before = counts(previousSelections);
-  const after = counts(nextSelections);
-  const warnings = [];
-  for (const [id, count] of after) {
-    const definition = byId.get(id);
-    if (!definition?.sourceUuid) continue;
-    const previousCount = before.get(id) ?? 0;
-    if (count <= previousCount) continue;
-    const source = await fromUuid(definition.sourceUuid).catch(() => null);
-    if (!source || source.documentName !== "Item") {
-      warnings.push(definition.name + " has advancements but its source Item could not be loaded.");
-      continue;
-    }
-    const itemData = source.toObject();
-    delete itemData._id;
-    const hasAdvancements = Array.isArray(itemData.system?.advancement) && itemData.system.advancement.length > 0;
-    if (!hasAdvancements) continue;
-    try {
-      const Manager = game.dnd5e?.applications?.advancement?.AdvancementManager;
-      if (!Manager?.forNewItem) throw new Error("D&D 5e AdvancementManager.forNewItem is unavailable.");
-      const manager = Manager.forNewItem(actor, itemData);
-      if (!manager.steps?.length) {
-        // A source may contain only already-resolved/automatic data. Let the
-        // native manager process it when available rather than silently marking
-        // it as applied.
-        await manager.render(true);
-      } else {
-        await manager.render(true);
-      }
-    } catch (error) {
-      console.error("Tamer Manager | Improvement advancement workflow failed for " + id + ".", error);
-      warnings.push(definition.name + " advancement/choice workflow could not be completed. Reopen the improvement picker and retry.");
-    }
-  }
-  return { warnings };
-}
-
 export async function syncImprovementSheetItems(actor, selections, definitions, allDefinitions = definitions) {
   const byId = new Map(definitions.map(definition => [String(definition.id), definition]));
   const allById = new Map(allDefinitions.map(definition => [String(definition.id), definition]));
