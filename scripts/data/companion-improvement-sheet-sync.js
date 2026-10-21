@@ -165,7 +165,11 @@ export async function syncImprovementSheetItems(actor, selections, definitions, 
   // preserve its existing managed Item instead of deleting content we cannot
   // safely reconcile. It becomes removable again once its selection is removed.
   const desiredIds = new Set([
-    ...desired.keys(),
+    // Preserve selected Items created by the native advancement workflow even
+    // when their definition is not configured for ordinary sheet display.
+    // Those Items own the advancement choices/effects and are removed only
+    // when the corresponding improvement is deselected.
+    ...counts.keys(),
     ...[...counts.keys()].filter(id => !allById.has(id))
   ]);
   const removals = existing.filter(item => !desiredIds.has(String(item.getFlag(MODULE_ID, "managedImprovementId"))));
