@@ -21,7 +21,7 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
       const id = typeof raw === "string" ? raw : String(raw?.id ?? "");
       if (!id) continue;
       const count = typeof raw === "string" ? 1 : Math.max(1, Math.floor(Number(raw?.count ?? raw?.rank ?? 1) || 1));
-      counts.set(id, Math.max(counts.get(id) ?? 0, count));
+      counts.set(id, (counts.get(id) ?? 0) + count);
     }
     return counts;
   };
