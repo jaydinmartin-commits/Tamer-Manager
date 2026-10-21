@@ -98,11 +98,13 @@ Hooks.once("init", () => {
   };
   Hooks.on("getHeaderControlsCharacterActorSheet", addCompanionManagerHeaderControl);
   Hooks.on("getHeaderControlsActorSheetV2", addCompanionManagerHeaderControl);
+  Hooks.on("getHeaderControlsApplicationV2", addCompanionManagerHeaderControl);
 
-  // Extend the actual D&D 5e v6 CharacterActorSheet rather than inserting a
-  // detached window into the sheet. The standalone manager/header control remains
-  // available as a fallback.
-  const CharacterActorSheet = globalThis.dnd5e?.applications?.actor?.CharacterActorSheet;
+  // D&D 5e v6 may finish exposing its sheet class after the module init hook.
+  // Register once the system is ready, rather than permanently skipping the tab
+  // when the class is not yet available during init.
+  Hooks.once("ready", () => {
+  const CharacterActorSheet = game.dnd5e?.applications?.actor?.CharacterActorSheet ?? globalThis.dnd5e?.applications?.actor?.CharacterActorSheet;
   if (CharacterActorSheet && !CharacterActorSheet.__tamerManagerTabRegistered) {
     CharacterActorSheet.__tamerManagerTabRegistered = true;
     CharacterActorSheet.PARTS = {
@@ -168,8 +170,9 @@ Hooks.once("init", () => {
       }
     };
   } else if (!CharacterActorSheet) {
-    console.warn("Tamer Manager | D&D 5e CharacterActorSheet was unavailable during init; the standalone Companion Manager remains available.");
+    console.error("Tamer Manager | D&D 5e CharacterActorSheet was unavailable at ready; the standalone Companion Manager remains available.");
   }
+  });
 
   game.modules.get(MODULE_ID).api = {
     TamerManager,
