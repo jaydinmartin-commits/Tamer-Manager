@@ -189,7 +189,7 @@ export const ToughenUpApplication = Object.freeze({
     const obsolete = getLedger(actor)
       .filter(entry => entry?.type === "toughen-up" && !desired.has(String(entry.applicationId)))
       .sort((a, b) => {
-        const rank = entry => Number(String(entry.applicationId).match(/::rank-(\\d+)::toughen-up-v1$/)?.[1] ?? 0);
+        const rank = entry => Number(String(entry.applicationId).match(/::rank-(\d+)::toughen-up-v1$/)?.[1] ?? 0);
         return rank(b) - rank(a);
       });
     let removed = 0;
