@@ -86,10 +86,14 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
           Number(item.getFlag?.(MODULE_ID, "managedImprovementRank")) === rank &&
           item.getFlag?.(MODULE_ID, "advancementWorkflow") === true
         );
-        if (definition.displayOnSheet !== true && created) {
-          await actor.deleteEmbeddedDocuments("Item", [created.id]);
-        } else if (created) {
-          await created.update({ ["flags." + MODULE_ID + ".advancementWorkflow"]: false });
+        if (created) {
+          // Keep the Item that owns the advancement data even when the GM has
+          // disabled its ordinary sheet display. Deleting it here would orphan
+          // advancement choices and prevent D&D 5e from tracking/reversing them.
+          await created.update({
+            ["flags." + MODULE_ID + ".advancementWorkflow"]: false,
+            ["flags." + MODULE_ID + ".displayOnSheet"]: definition.displayOnSheet === true
+          });
         }
       } catch (error) {
         console.error("Tamer Manager | Improvement advancement failed for " + id + " rank " + rank + ".", error);
