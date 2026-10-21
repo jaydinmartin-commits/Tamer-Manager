@@ -1,21 +1,36 @@
 # Tamer Manager
 
-A clean-room Foundry VTT module for managing Tamer companions.
+A standalone Foundry VTT module for managing Tamer companions.
 
-## Development target
+## Compatibility target
 
-- Foundry VTT v14.368
-- D&D 5e v6.0.5
-- ApplicationV2 architecture
+- Foundry VTT v14 (developed against v14.368)
+- D&D 5e system v6.0 (developed against v6.0.5)
+- ApplicationV2 sheets and applications
 
-## Repository separation
+## Install
 
-This repository is the active development repository. The previous repository, `Tamer-companion-manager`, is historical reference material only and is not a dependency, code source, or release channel for this module.
+Use the module manifest:
 
-The module uses its own module ID, API namespace, flag namespace, release manifest, and package name so an installation of the historical module cannot be mistaken for this one.
+`https://raw.githubusercontent.com/jaydinmartin-commits/Tamer-Manager/main/module.json`
 
-## Current candidate scope
+Install from a published release for normal use. Do not install a pull-request branch as a campaign module.
 
-Version 0.1.17 is a development candidate for the standalone companion manager and its persistence foundation. It includes the manager window, character-sheet header entry point, companion relationship management, initialization/recovery safeguards, and GM-facing option/tree storage contracts. Improvement selection, summoning, vessels, Pocket Family, and Splicer augments are not yet implemented as complete user-facing systems.
+## Current project status
 
-Automated CI validates JavaScript syntax, data/access contracts, and package contents. It cannot launch Foundry itself; verify the manager entry point and companion interactions in a live Foundry v14 / D&D 5e v6 world before relying on them in a campaign.
+This repository is the active development and release repository. The former `Tamer-companion-manager` repository is historical reference material only and is not a dependency, code source, or release channel for this module.
+
+Implemented areas include the standalone Companion Manager, character-sheet header entry point, the Companion sheet tab, companion relationship persistence and recovery, GM-managed option/tree configuration, companion eligibility/progression checks, sheet improvement synchronization, and the Toughen Up configuration workflow.
+
+Improvement advancement handling is under active correction. In particular, removing a managed improvement that granted a native D&D 5e advancement must reverse that advancement's applied effects—not merely delete the source Item. The current candidate for that fix is tracked in [PR #31](https://github.com/jaydinmartin-commits/Tamer-Manager/pull/31); it is not part of the published v0.1.45 release.
+
+The Companion tab layout correction is tracked separately in [PR #30](https://github.com/jaydinmartin-commits/Tamer-Manager/pull/30). It must be merged and included in a release before it can be tested as a published fix.
+
+## Validation
+
+GitHub Actions checks JavaScript syntax, module/package contents, and automated data/access contracts. These tests do not launch Foundry or prove live UI positioning, dnd5e advancement reversal, or campaign-world behavior. Test those in Foundry v14 with D&D 5e v6 before relying on a candidate in a campaign.
+
+## Development documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Data contracts](docs/DATA_CONTRACTS.md)
