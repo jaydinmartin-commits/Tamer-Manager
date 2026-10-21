@@ -561,6 +561,19 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         String(definition.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") === "toughenup"
       );
       const toughenById = new Map(toughenDefinitions.map(definition => [definition.id, definition]));
+      const desiredToughenApplicationIds = [];
+      for (const selected of result) {
+        const definition = toughenById.get(selected.id);
+        if (!definition) continue;
+        const count = Math.max(1, Math.floor(Number(selected.count ?? 1) || 1));
+        for (let rank = 1; rank <= count; rank += 1) {
+          desiredToughenApplicationIds.push(this.tamer.uuid + "::" + actor.uuid + "::" + definition.id + "::rank-" + rank + "::toughen-up-v1");
+        }
+      }
+      // Reverse deselected ranks before applying any new ranks, so a downgrade
+      // restores the previous HP/Hit Dice state instead of leaving stale bonuses.
+      const reversal = await ToughenUpApplication.reconcile({ actor, desiredApplicationIds: desiredToughenApplicationIds });
+      warnings.push(...reversal.warnings);
       const toughenHistory = new Set(ToughenUpApplication.history(actor).map(entry => entry.applicationId));
       for (const selected of result) {
         const definition = toughenById.get(selected.id);
