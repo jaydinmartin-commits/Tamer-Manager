@@ -161,16 +161,21 @@ export async function syncImprovementSheetItems(actor, selections, definitions, 
     }
   }
 
-  // If a selected legacy improvement no longer has a configured definition,
-  // preserve its existing managed Item instead of deleting content we cannot
-  // safely reconcile. It becomes removable again once its selection is removed.
+  // Preserve selected legacy definitions that are no longer configured, plus
+  // selected managed Items that actually own native advancement data. Do not
+  // preserve every selected-but-ineligible definition: its stale sheet Item
+  // must still be removed when it is no longer eligible for this companion.
+  const advancementOwnedIds = existing
+    .filter(item => {
+      const id = String(item.getFlag(MODULE_ID, "managedImprovementId") ?? "");
+      return counts.has(id) &&
+        (Array.isArray(item.system?.advancement) && item.system.advancement.length > 0);
+    })
+    .map(item => String(item.getFlag(MODULE_ID, "managedImprovementId")));
   const desiredIds = new Set([
-    // Preserve selected Items created by the native advancement workflow even
-    // when their definition is not configured for ordinary sheet display.
-    // Those Items own the advancement choices/effects and are removed only
-    // when the corresponding improvement is deselected.
-    ...counts.keys(),
-    ...[...counts.keys()].filter(id => !allById.has(id))
+    ...desired.keys(),
+    ...[...counts.keys()].filter(id => !allById.has(id)),
+    ...advancementOwnedIds
   ]);
   const removals = existing.filter(item => !desiredIds.has(String(item.getFlag(MODULE_ID, "managedImprovementId"))));
   if (removals.length) {
