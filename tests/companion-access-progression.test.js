@@ -7,6 +7,7 @@ import { TamerCompanionSummary } from "../scripts/data/tamer-companion-summary.j
 import { TamerProgressionProvider } from "../scripts/data/tamer-progression-provider.js";
 import { CompanionInitialization } from "../scripts/data/companion-initialization.js";
 import { CompanionInitializationApplication } from "../scripts/data/companion-initialization-application.js";
+import { ToughenUpApplication } from "../scripts/data/toughen-up-application.js";
 
 if (!globalThis.foundry) {
   globalThis.foundry = { utils: { deepClone: value => structuredClone(value) } };
@@ -314,6 +315,54 @@ await test("initialization application fails closed for unsupported HP formulas"
   });
   assert(!result.eligible && result.reason === "unsupported-or-inconsistent-hp-formula",
     "Unexpected formula shapes must not be rewritten automatically.");
+});
+
+
+await test("Toughen Up blocks retries but allows distinct later selections", async () => {
+  const flags = {};
+  const actor = {
+    uuid: "Actor.toughen-up-test", type: "npc", isOwner: true,
+    system: {
+      attributes: { hd: { denomination: 8, max: 1 }, hp: { value: 6, max: 10, formula: "1d8+2" } },
+      abilities: { con: { mod: 2 } }
+    },
+    getFlag: (scope, key) => flags[scope + "." + key],
+    update: async changes => {
+      for (const [path, value] of Object.entries(changes)) {
+        if (path.startsWith("system.")) {
+          const keys = path.split(".");
+          let target = actor;
+          for (const key of keys.slice(0, -1)) target = target[key] ??= {};
+          target[keys[keys.length - 1]] = value;
+        } else if (path.startsWith("flags.")) flags[path.slice("flags.".length)] = structuredClone(value);
+      }
+    },
+    setFlag: async (scope, key, value) => { flags[scope + "." + key] = structuredClone(value); }
+  };
+  const previousRoll = globalThis.Roll;
+  const previousGame = globalThis.game;
+  globalThis.game = { user: { isGM: true } };
+  globalThis.Roll = class {
+    constructor(formula) { this.formula = formula; }
+    async evaluate() { return { total: 4 }; }
+  };
+  try {
+    const firstId = "Actor.toughen-up-test::toughen-up::dev-test::first";
+    assert(ToughenUpApplication.preview({ actor, applicationId: firstId }).eligible, "First selection should pass preflight.");
+    const first = await ToughenUpApplication.apply({ actor, applicationId: firstId });
+    assert(first.applied && first.verified, "First selection should apply and verify.");
+    const retry = await ToughenUpApplication.apply({ actor, applicationId: firstId });
+    assert(!retry.eligible && retry.reason === "already-applied", "Retrying the same selection must be blocked.");
+    const secondId = "Actor.toughen-up-test::toughen-up::dev-test::second";
+    assert(ToughenUpApplication.preview({ actor, applicationId: secondId }).eligible, "Distinct later selection should pass preflight.");
+    const second = await ToughenUpApplication.apply({ actor, applicationId: secondId });
+    assert(second.applied && second.verified, "Distinct later selection should apply and verify.");
+    assert(actor.system.attributes.hd.max === 3, "Two distinct selections should add two hit dice total.");
+    assert(ToughenUpApplication.history(actor).length === 2, "Each selection should have one ledger entry.");
+  } finally {
+    if (previousRoll === undefined) delete globalThis.Roll; else globalThis.Roll = previousRoll;
+    if (previousGame === undefined) delete globalThis.game; else globalThis.game = previousGame;
+  }
 });
 
 const failed = testResults.filter(result => !result.passed);
