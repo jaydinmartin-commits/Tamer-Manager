@@ -9,10 +9,34 @@ import { ToughenUpApplication } from "./data/toughen-up-application.js";
 
 const MODULE_ID = "tamer-manager";
 
-// The dnd5e v6 browser does not expose a per-instance pack allowlist. Scope a
-// fetch filter to the lifetime of this picker so its native UI only lists the
-// GM-enabled Actor packs. The guard prevents overlapping Tamer pickers.
+// The dnd5e v6 browser does not expose a per-instance pack allowlist. Filter
+// source collation only while this picker is active, using libWrapper when
+// available so other modules can safely wrap the same API.
 let companionPickerActive = false;
+let activeAllowedCollections = null;
+let companionSourceWrapperRegistered = false;
+
+function registerCompanionSourceWrapper() {
+  if (companionSourceWrapperRegistered) return true;
+  const libWrapper = globalThis.libWrapper;
+  if (typeof libWrapper?.register !== "function") return false;
+  libWrapper.register(
+    MODULE_ID,
+    "dnd5e.applications.settings.CompendiumBrowserSettingsConfig.collateSources",
+    function(wrapped, ...args) {
+      const nativeSources = [...wrapped(...args)];
+      if (!activeAllowedCollections) return new Set(nativeSources);
+      const itemSources = nativeSources.filter(collection => {
+        const pack = game.packs.get(collection);
+        return pack?.documentName !== "Actor" && pack?.metadata?.type !== "Actor";
+      });
+      return new Set([...itemSources, ...activeAllowedCollections]);
+    },
+    "WRAPPER"
+  );
+  companionSourceWrapperRegistered = true;
+  return true;
+}
 
 
 const ADD_REASONS = {
@@ -223,42 +247,35 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return null;
     }
 
-    // dnd5e v6's native browser has no per-window collection allowlist. Scope
-    // source collation to the GM-enabled Actor packs while retaining the exact
-    // native D&D 5e interface and all native filters.
-    const originalFetch = CompendiumBrowser.fetch;
+    // Keep the native browser UI and its fetch lifecycle intact. Only adjust
+    // source collation during this picker session; libWrapper composes safely
+    // with other modules that wrap the D&D 5e browser.
+    if (globalThis.libWrapper?.register) {
+      try {
+        registerCompanionSourceWrapper();
+      } catch (error) {
+        console.error("Tamer Manager | Could not register the Compendium Browser source wrapper.", error);
+        ui.notifications.error("Tamer Manager could not safely integrate with the Compendium Browser. Check module compatibility and console details.");
+        return null;
+      }
+    }
+    const originalCollateSources = CompendiumBrowserSettingsConfig.collateSources;
+    const useLibWrapper = companionSourceWrapperRegistered;
     companionPickerActive = true;
+    activeAllowedCollections = allowedCollections;
     let uuid;
     try {
-      CompendiumBrowser.fetch = async function(documentClass, options = {}) {
-        if (documentClass !== CONFIG.Actor.documentClass) {
-          return originalFetch.call(this, documentClass, options);
-        }
-
-        // Filter at the native browser's source-collation stage so disallowed
-        // packs are never indexed for this picker (avoids unnecessary work and
-        // keeps unauthorized entries out of the browser result pipeline).
-        const originalCollateSources = CompendiumBrowserSettingsConfig.collateSources;
-        CompendiumBrowserSettingsConfig.collateSources = function() {
-          const nativeSources = [...originalCollateSources.call(this)];
-          // Preserve the system's normal Item sources for browser internals, but
-          // replace its Actor-source list with the GM's explicit Tamer Manager
-          // allowlist. This setting must work independently of global dnd5e
-          // browser source preferences.
+      if (!useLibWrapper) {
+        // Graceful fallback for worlds that do not install libWrapper.
+        CompendiumBrowserSettingsConfig.collateSources = function(...args) {
+          const nativeSources = [...originalCollateSources.apply(this, args)];
           const itemSources = nativeSources.filter(collection => {
             const pack = game.packs.get(collection);
             return pack?.documentName !== "Actor" && pack?.metadata?.type !== "Actor";
           });
           return new Set([...itemSources, ...allowedCollections]);
         };
-        try {
-          // Await the index operation: its source-collation call happens during
-          // this asynchronous work, not synchronously at invocation time.
-          return await originalFetch.call(this, documentClass, options);
-        } finally {
-          CompendiumBrowserSettingsConfig.collateSources = originalCollateSources;
-        }
-      };
+      }
       uuid = await CompendiumBrowser.selectOne({
         tab: "monsters",
         filters: {
@@ -268,7 +285,8 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         selection: { min: 1, max: 1 }
       });
     } finally {
-      CompendiumBrowser.fetch = originalFetch;
+      if (!useLibWrapper) CompendiumBrowserSettingsConfig.collateSources = originalCollateSources;
+      activeAllowedCollections = null;
       companionPickerActive = false;
     }
     if (!uuid) return null;
@@ -543,6 +561,19 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         String(definition.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") === "toughenup"
       );
       const toughenById = new Map(toughenDefinitions.map(definition => [definition.id, definition]));
+      const desiredToughenApplicationIds = [];
+      for (const selected of result) {
+        const definition = toughenById.get(selected.id);
+        if (!definition) continue;
+        const count = Math.max(1, Math.floor(Number(selected.count ?? 1) || 1));
+        for (let rank = 1; rank <= count; rank += 1) {
+          desiredToughenApplicationIds.push(this.tamer.uuid + "::" + actor.uuid + "::" + definition.id + "::rank-" + rank + "::toughen-up-v1");
+        }
+      }
+      // Reverse deselected ranks before applying any new ranks, so a downgrade
+      // restores the previous HP/Hit Dice state instead of leaving stale bonuses.
+      const reversal = await ToughenUpApplication.reconcile({ actor, desiredApplicationIds: desiredToughenApplicationIds });
+      warnings.push(...reversal.warnings);
       const toughenHistory = new Set(ToughenUpApplication.history(actor).map(entry => entry.applicationId));
       for (const selected of result) {
         const definition = toughenById.get(selected.id);
