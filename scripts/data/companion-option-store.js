@@ -92,6 +92,7 @@ function normalizeDefinitions(definitions) {
     if (record.treeId != null && (typeof record.treeId !== "string" || !record.treeId.trim())) throw new Error(`Companion option ${record.id} has invalid treeId.`);
     if (record.displayOnManager != null && typeof record.displayOnManager !== "boolean") throw new Error(`Companion option ${record.id} has invalid displayOnManager flag.`);
     if (record.displayOnSheet != null && typeof record.displayOnSheet !== "boolean") throw new Error(`Companion option ${record.id} has invalid displayOnSheet flag.`);
+    if (record.grantOnTaming != null && typeof record.grantOnTaming !== "boolean") throw new Error(`Companion option ${record.id} has invalid grantOnTaming flag.`);
     return CompanionOptionDefinition.normalize(record);
   });
   const validation = CompanionOptionValidator.validate(normalized);
