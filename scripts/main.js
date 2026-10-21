@@ -110,7 +110,7 @@ Hooks.once("init", () => {
     CharacterActorSheet.PARTS = {
       ...CharacterActorSheet.PARTS,
       companions: {
-        container: { classes: ["tab-body"], id: "tab" },
+        container: { classes: ["tab-body"], id: "companions" },
         template: "modules/tamer-manager/templates/tamer-manager.hbs",
         scrollable: [""]
       }
@@ -169,6 +169,38 @@ Hooks.once("init", () => {
         ...Object.fromEntries(Object.entries(managerActions).map(([name, handler]) => [name, forwardManagerAction(handler)]))
       }
     };
+
+    // The system action dispatcher can miss actions on dynamically added parts.
+    // A delegated fallback keeps the Companion tab buttons functional.
+    const originalOnRender = CharacterActorSheet.prototype._onRender;
+    if (typeof originalOnRender === "function" && !CharacterActorSheet.prototype.__tamerManagerRenderActionsPatched) {
+      CharacterActorSheet.prototype.__tamerManagerRenderActionsPatched = true;
+      CharacterActorSheet.prototype._onRender = async function(context, options) {
+        await originalOnRender.call(this, context, options);
+        const sheet = this;
+        const root = sheet.element;
+        if (!root?.addEventListener || root.dataset?.tamerManagerActionsBound) return;
+        if (root.dataset) root.dataset.tamerManagerActionsBound = "true";
+        root.addEventListener("click", event => {
+          const target = event.target?.closest?.('button[data-action^="tamer"]');
+          if (!target || !root.contains(target)) return;
+          const handler = managerActions[target.dataset.action];
+          if (typeof handler !== "function") return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          const actor = sheet.actor ?? sheet.document ?? sheet.object;
+          if (!actor) {
+            ui.notifications.error("Tamer Manager could not identify the character for this action.");
+            return;
+          }
+          const actionContext = { tamer: actor, render: sheet.render.bind(sheet) };
+          Promise.resolve(handler.call(actionContext, event, target)).catch(error => {
+            console.error("Tamer Manager | Companion-tab action failed.", error);
+            ui.notifications.error("That Companion Manager action failed. Check the console for details.");
+          });
+        }, true);
+      };
+    }
   } else if (!CharacterActorSheet) {
     console.error("Tamer Manager | D&D 5e CharacterActorSheet was unavailable at ready; the standalone Companion Manager remains available.");
   }
