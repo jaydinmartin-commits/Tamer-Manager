@@ -48,6 +48,10 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
         item.getFlag?.(MODULE_ID, "advancementWorkflow") !== true
       );
       if (rank <= oldCount && completedRank) continue;
+      // Record existing documents before opening the workflow. An interrupted
+      // rank may already have a pending managed Item, so matching only by flags
+      // could mistakenly mark that stale Item complete instead of the new result.
+      const existingItemIds = new Set(Array.from(actor.items ?? []).map(item => item.id ?? item._id).filter(Boolean));
       const itemData = foundry.utils.deepClone(sourceData);
       delete itemData._id;
       itemData.flags ??= {};
@@ -89,6 +93,7 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
           return { warnings };
         }
         const created = Array.from(actor.items ?? []).find(item =>
+          !existingItemIds.has(item.id ?? item._id) &&
           item.getFlag?.(MODULE_ID, "managedImprovementId") === id &&
           Number(item.getFlag?.(MODULE_ID, "managedImprovementRank")) === rank &&
           item.getFlag?.(MODULE_ID, "advancementWorkflow") === true
