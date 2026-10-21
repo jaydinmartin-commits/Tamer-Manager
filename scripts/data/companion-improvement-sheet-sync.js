@@ -210,10 +210,60 @@ export async function syncImprovementSheetItems(actor, selections, definitions, 
   const removalIds = [...new Set([...removals, ...excessAdvancementRanks].map(item => item.id).filter(Boolean))];
   if (removalIds.length) {
     try {
-      await actor.deleteEmbeddedDocuments("Item", removalIds);
+      const removalItems = removalIds.map(id => actor.items.get?.(id) ?? Array.from(actor.items ?? []).find(item => item.id === id)).filter(Boolean);
+      const advancementManagerClass = game.dnd5e?.applications?.advancement?.AdvancementManager;
+      const completedNativeRemovals = new Set();
+
+      // dnd5e applies advancement effects to the Actor when the improvement is
+      // selected. Deleting its Item directly leaves those changes behind (ASI,
+      // traits, proficiencies, granted Items, etc.). Use dnd5e's own reverse
+      // workflow before deleting each advancement-bearing managed Item.
+      for (const item of removalItems) {
+        if (!hasAdvancementData(item.system?.advancement)) continue;
+        if (!advancementManagerClass?.forDeletedItem) {
+          throw new Error("The native dnd5e AdvancementManager.forDeletedItem API is unavailable.");
+        }
+        const manager = advancementManagerClass.forDeletedItem(actor, item.id);
+        if (!manager?.steps?.length) {
+          // No applicable native advancement flows exist on this Item; it is
+          // safe to remove the managed source Item itself.
+          await actor.deleteEmbeddedDocuments("Item", [item.id]);
+          completedNativeRemovals.add(item.id);
+          continue;
+        }
+
+        const completed = await new Promise(resolve => {
+          let settled = false;
+          const finish = value => {
+            if (settled) return;
+            settled = true;
+            Hooks.off("dnd5e.advancementManagerComplete", onComplete);
+            resolve(value);
+          };
+          const onComplete = candidate => {
+            if (candidate === manager) finish(true);
+          };
+          Hooks.on("dnd5e.advancementManagerComplete", onComplete);
+          const originalOnClose = manager._onClose.bind(manager);
+          manager._onClose = function(options) {
+            originalOnClose(options);
+            finish(false);
+          };
+          Promise.resolve(manager.render({ force: true })).catch(error => {
+            console.error("Tamer Manager | Native advancement reversal failed.", error);
+            finish(false);
+          });
+        });
+        if (!completed) throw new Error("Native advancement reversal was cancelled or did not complete.");
+        completedNativeRemovals.add(item.id);
+      }
+
+      const plainRemovalIds = removalIds.filter(id => !completedNativeRemovals.has(id) &&
+        !removalItems.some(item => item.id === id && hasAdvancementData(item.system?.advancement)));
+      if (plainRemovalIds.length) await actor.deleteEmbeddedDocuments("Item", plainRemovalIds);
     } catch (error) {
-      console.error("Tamer Manager | Failed to remove deselected managed improvements and advancement ranks.", error);
-      warnings.push("One or more removed improvement advancements could not be cleaned up from the companion.");
+      console.error("Tamer Manager | Failed to reverse and remove deselected managed improvements and advancement ranks.", error);
+      warnings.push("One or more removed improvements could not be fully reversed. Their managed Items were retained where possible; review the companion before continuing.");
     }
   }
   return { warnings };

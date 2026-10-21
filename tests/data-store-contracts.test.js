@@ -66,23 +66,52 @@ await test("advancement choice labels resolve to readable options", () => {
   assert(labels.includes("Swim Speed"), "The companion card should show the readable selected choice.");
 });
 
-await test("removing an advancement improvement deletes its managed Item", async () => {
+await test("removing an advancement improvement uses dnd5e native reversal before deletion", async () => {
   const deleted = [];
-  const advancementItem = {
+  const handlers = new Set();
+  const previousGame = globalThis.game;
+  const previousHooks = globalThis.Hooks;
+  const item = {
     id: "managed-war-training",
-    system: { advancement: { choice: { type: "ItemChoice", value: ["light-armor"] } } },
+    system: { advancement: { choice: { type: "AbilityScoreImprovement", value: { dex: 2 } } } },
     getFlag(scope, key) {
       if (scope !== "tamer-manager") return undefined;
       return ({ managedImprovementId: "war-training", managedImprovementRank: 1, advancementWorkflow: false })[key];
     }
   };
   const actor = {
-    items: [advancementItem],
+    items: { get: id => id === item.id ? item : undefined, [Symbol.iterator]: function* () { yield item; } },
     async deleteEmbeddedDocuments(type, ids) { deleted.push(...ids); }
   };
-  const result = await syncImprovementSheetItems(actor, [], [], [{ id: "war-training", name: "War Training" }]);
-  assert(deleted.includes("managed-war-training"), "Deselected advancement Items must be deleted immediately.");
-  assert(result.warnings.length === 0, "Successful cleanup should not produce a warning.");
+  let reversalInvoked = false;
+  class AdvancementManager {
+    static forDeletedItem(target, itemId) {
+      assert(target === actor && itemId === item.id, "Native reversal must target the exact Actor and managed Item.");
+      reversalInvoked = true;
+      return {
+        steps: [{ type: "reverse" }],
+        async render() {
+          await actor.deleteEmbeddedDocuments("Item", [item.id]);
+          for (const handler of handlers) handler(this);
+        },
+        _onClose() {}
+      };
+    }
+  }
+  globalThis.game = { ...previousGame, dnd5e: { applications: { advancement: { AdvancementManager } } } };
+  globalThis.Hooks = {
+    on(name, handler) { if (name === "dnd5e.advancementManagerComplete") handlers.add(handler); },
+    off(name, handler) { handlers.delete(handler); }
+  };
+  try {
+    const result = await syncImprovementSheetItems(actor, [], [], [{ id: "war-training", name: "War Training" }]);
+    assert(reversalInvoked, "Removal must invoke dnd5e's native advancement reversal workflow.");
+    assert(deleted.includes(item.id), "The native workflow should remove the deselected Item.");
+    assert(result.warnings.length === 0, "Successful reversal should not produce a warning.");
+  } finally {
+    globalThis.game = previousGame;
+    globalThis.Hooks = previousHooks;
+  }
 });
 
 await test("D&D 5e v6 object-shaped advancement data is recognized", () => {
