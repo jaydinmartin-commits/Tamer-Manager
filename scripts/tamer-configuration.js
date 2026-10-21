@@ -70,7 +70,8 @@ export class TamerConfiguration extends HandlebarsApplicationMixin(ApplicationV2
       replacesId: "",
       treeId: "",
       displayOnManager: true,
-      displayOnSheet: false
+      displayOnSheet: false,
+      grantOnTaming: false
     };
   }
 
@@ -90,7 +91,8 @@ export class TamerConfiguration extends HandlebarsApplicationMixin(ApplicationV2
       replacesId: definition.replacesId ?? "",
       treeId: definition.treeId ?? "",
       displayOnManager: definition.displayOnManager !== false,
-      displayOnSheet: Boolean(definition.displayOnSheet)
+      displayOnSheet: Boolean(definition.displayOnSheet),
+      grantOnTaming: Boolean(definition.grantOnTaming)
     };
   }
 
@@ -168,7 +170,8 @@ export class TamerConfiguration extends HandlebarsApplicationMixin(ApplicationV2
         replacesId: String(data.get("replacesId") ?? "").trim() || null,
         treeId: String(data.get("treeId") ?? "").trim() || null,
         displayOnManager: data.get("displayOnManager") === "on",
-        displayOnSheet: data.get("displayOnSheet") === "on"
+        displayOnSheet: data.get("displayOnSheet") === "on",
+        grantOnTaming: data.get("grantOnTaming") === "on"
       });
 
       await CompanionOptionStore.upsert(definition);
