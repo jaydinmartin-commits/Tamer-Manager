@@ -21,7 +21,7 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
       const id = typeof raw === "string" ? raw : String(raw?.id ?? "");
       if (!id) continue;
       const count = typeof raw === "string" ? 1 : Math.max(1, Math.floor(Number(raw?.count ?? raw?.rank ?? 1) || 1));
-      counts.set(id, Math.max(counts.get(id) ?? 0, count));
+      counts.set(id, (counts.get(id) ?? 0) + count);
     }
     return counts;
   };
@@ -70,7 +70,10 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
       let manager;
       try {
         manager = Manager.forNewItem(actor, itemData);
-        if (!manager.steps?.length) continue;
+        if (!manager.steps?.length) {
+          warnings.push(definition.name + " has advancement data, but D&D 5e produced no applicable advancement steps. The selection was not saved as configured.");
+          return { warnings };
+        }
         const completed = await new Promise(resolve => {
           let settled = false;
           const finish = value => {
@@ -88,7 +91,7 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
             originalOnClose(options);
             finish(false);
           };
-          Promise.resolve(manager.render(true)).catch(error => {
+          Promise.resolve(manager.render({ force: true })).catch(error => {
             console.error("Tamer Manager | Could not open advancement workflow.", error);
             finish(false);
           });
