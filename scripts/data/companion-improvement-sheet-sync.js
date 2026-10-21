@@ -28,7 +28,6 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
     const definition = byId.get(id);
     if (!definition?.sourceUuid) continue;
     const oldCount = before.get(id) ?? 0;
-    if (count <= oldCount) continue;
     const source = await fromUuid(definition.sourceUuid).catch(() => null);
     if (!source || source.documentName !== "Item") {
       warnings.push(definition.name + " has advancements but its source Item is unavailable.");
@@ -40,7 +39,15 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
       warnings.push("The D&D 5e advancement workflow is unavailable; " + definition.name + " was not added.");
       continue;
     }
-    for (let rank = oldCount + 1; rank <= count; rank++) {
+    for (let rank = 1; rank <= count; rank++) {
+      // Existing selection records can outlive an interrupted advancement
+      // workflow. Retry ranks whose managed advancement Item is still pending.
+      const completedRank = Array.from(actor.items ?? []).some(item =>
+        item.getFlag?.(MODULE_ID, "managedImprovementId") === id &&
+        Number(item.getFlag?.(MODULE_ID, "managedImprovementRank")) === rank &&
+        item.getFlag?.(MODULE_ID, "advancementWorkflow") !== true
+      );
+      if (rank <= oldCount && completedRank) continue;
       const itemData = foundry.utils.deepClone(sourceData);
       delete itemData._id;
       itemData.flags ??= {};
