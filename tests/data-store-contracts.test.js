@@ -66,6 +66,25 @@ await test("advancement choice labels resolve to readable options", () => {
   assert(labels.includes("Swim Speed"), "The companion card should show the readable selected choice.");
 });
 
+await test("removing an advancement improvement deletes its managed Item", async () => {
+  const deleted = [];
+  const advancementItem = {
+    id: "managed-war-training",
+    system: { advancement: { choice: { type: "ItemChoice", value: ["light-armor"] } } },
+    getFlag(scope, key) {
+      if (scope !== "tamer-manager") return undefined;
+      return ({ managedImprovementId: "war-training", managedImprovementRank: 1, advancementWorkflow: false })[key];
+    }
+  };
+  const actor = {
+    items: [advancementItem],
+    async deleteEmbeddedDocuments(type, ids) { deleted.push(...ids); }
+  };
+  const result = await syncImprovementSheetItems(actor, [], [], [{ id: "war-training", name: "War Training" }]);
+  assert(deleted.includes("managed-war-training"), "Deselected advancement Items must be deleted immediately.");
+  assert(result.warnings.length === 0, "Successful cleanup should not produce a warning.");
+});
+
 await test("D&D 5e v6 object-shaped advancement data is recognized", () => {
   assert(hasAdvancementData({ "advancement-a": { type: "ItemChoice", title: "Choose a feature" } }),
     "Object-shaped dnd5e v6 advancement data must trigger native advancement handling.");
