@@ -362,6 +362,10 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       const allDefinitions = CompanionOptions.byType("improvement");
       const warnings = [];
       try {
+        // Automatic taming grants must run native D&D 5e advancement choices
+        // immediately. A cancelled choice remains retryable on the next save.
+        const advancement = await applyNewImprovementAdvancements(actor, [], savedRecord.improvements, definitions);
+        warnings.push(...advancement.warnings);
         const growth = await reconcileGrowthHitDie(actor, savedRecord.improvements, definitions);
         if (growth.warning) warnings.push(growth.warning);
         const sheetSync = await syncImprovementSheetItems(actor, savedRecord.improvements, definitions, allDefinitions);
