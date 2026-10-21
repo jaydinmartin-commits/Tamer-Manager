@@ -1,10 +1,9 @@
 <section class="tamer-manager tamer-manager__root">
-  <header class="tamer-manager__header">
-    <div>
-      <h2>Companion Manager</h2>
-      {{#if hasTamer}}
-        <p class="tamer-manager__tamer">Managing companions for <strong>{{tamer.name}}</strong></p>
-        <p class="tamer-manager__capacity">POCKET FAMILY <strong>{{companionCount}} / {{#if maxCompanions}}{{maxCompanions}}{{else}}—{{/if}}</strong></p>
+  <header class="tamer-manager__header {{#if inSheetTab}}is-sheet-tab{{/if}}">
+    {{#if inSheetTab}}
+      <div class="tamer-manager__sheet-paradigm">
+        <span class="tamer-manager__eyebrow">Tamer Paradigm</span>
+        <strong>Empty space</strong>
         {{#if hasResources}}
           <div class="tamer-manager__resources" aria-label="Tamer resources">
             {{#each resources}}
@@ -12,16 +11,42 @@
             {{/each}}
           </div>
         {{/if}}
-      {{else}}
-        <p class="tamer-manager__tamer">No Tamer selected</p>
-      {{/if}}
-    </div>
-    <div class="tamer-manager__actions">
-      {{#if canManage}}
-        <button type="button" data-action="{{#if inSheetTab}}tamerAddCompanion{{else}}addCompanion{{/if}}"><i class="fa-solid fa-plus"></i> Add Companion</button>
-      {{/if}}
-      <button type="button" data-action="{{#if inSheetTab}}tamerRefresh{{else}}refresh{{/if}}" title="Refresh companion list" aria-label="Refresh"><i class="fa-solid fa-rotate"></i></button>
-    </div>
+      </div>
+      <div class="tamer-manager__sheet-toolbar">
+        {{#if hasTamer}}
+          <div class="tamer-manager__capacity">Pocket Family <strong>{{companionCount}} / {{#if maxCompanions}}{{maxCompanions}}{{else}}—{{/if}}</strong></div>
+        {{/if}}
+        <div class="tamer-manager__actions">
+          {{#if canManage}}
+            <button type="button" data-action="tamerAddCompanion"><i class="fa-solid fa-plus"></i> Add Companion</button>
+          {{/if}}
+          <button type="button" data-action="tamerRefresh" title="Refresh companion list" aria-label="Refresh"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+      </div>
+    {{else}}
+      <div>
+        <h2>Companion Manager</h2>
+        {{#if hasTamer}}
+          <p class="tamer-manager__tamer">Managing companions for <strong>{{tamer.name}}</strong></p>
+          <p class="tamer-manager__capacity">POCKET FAMILY <strong>{{companionCount}} / {{#if maxCompanions}}{{maxCompanions}}{{else}}—{{/if}}</strong></p>
+          {{#if hasResources}}
+            <div class="tamer-manager__resources" aria-label="Tamer resources">
+              {{#each resources}}
+                <div class="tamer-manager__resource"><span>{{name}}</span><strong>{{value}} / {{max}}</strong></div>
+              {{/each}}
+            </div>
+          {{/if}}
+        {{else}}
+          <p class="tamer-manager__tamer">No Tamer selected</p>
+        {{/if}}
+      </div>
+      <div class="tamer-manager__actions">
+        {{#if canManage}}
+          <button type="button" data-action="addCompanion"><i class="fa-solid fa-plus"></i> Add Companion</button>
+        {{/if}}
+        <button type="button" data-action="refresh" title="Refresh companion list" aria-label="Refresh"><i class="fa-solid fa-rotate"></i></button>
+      </div>
+    {{/if}}
   </header>
 
   <main class="tamer-manager__body">
