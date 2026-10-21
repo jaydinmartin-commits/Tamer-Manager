@@ -41,11 +41,11 @@ export function selectedImprovementDisplay(record, definitions = []) {
 /** Resolve saved native advancement choices to readable labels for the companion card. */
 export function selectedAdvancementChoiceLabels(actor, improvementId) {
   const labels = [];
-  const seen = new Set();
   const add = value => {
     if (typeof value !== "string" || !value.trim()) return;
-    const label = value.trim();
-    if (!seen.has(label)) { seen.add(label); labels.push(label); }
+    // Keep duplicates: separate ranks of a repeatable improvement may have
+    // distinct selections, and each rank must remain visible on the card.
+    labels.push(value.trim());
   };
   for (const item of Array.from(actor?.items ?? [])) {
     if (String(item.getFlag?.("tamer-manager", "managedImprovementId") ?? "") !== String(improvementId)) continue;
