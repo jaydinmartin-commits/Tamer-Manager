@@ -1,5 +1,10 @@
 const MODULE_ID = "tamer-manager";
 
+export function hasAdvancementData(advancement) {
+  if (Array.isArray(advancement)) return advancement.length > 0;
+  return Boolean(advancement && typeof advancement === "object" && !Array.isArray(advancement) && Object.keys(advancement).length > 0);
+}
+
 /**
  * Synchronize only module-owned improvement Items. Unrelated items and manually
  * created copies are never modified or deleted by this reconciliation.
@@ -34,7 +39,7 @@ export async function applyNewImprovementAdvancements(actor, previousSelections,
       continue;
     }
     const sourceData = source.toObject();
-    if (!Array.isArray(sourceData.system?.advancement) || !sourceData.system.advancement.length) continue;
+    if (!hasAdvancementData(sourceData.system?.advancement)) continue;
     if (!Manager?.forNewItem) {
       warnings.push("The D&D 5e advancement workflow is unavailable; " + definition.name + " was not added.");
       continue;
@@ -181,7 +186,7 @@ export async function syncImprovementSheetItems(actor, selections, definitions, 
     .filter(item => {
       const id = String(item.getFlag(MODULE_ID, "managedImprovementId") ?? "");
       return counts.has(id) &&
-        (Array.isArray(item.system?.advancement) && item.system.advancement.length > 0);
+        hasAdvancementData(item.system?.advancement));
     })
     .map(item => String(item.getFlag(MODULE_ID, "managedImprovementId")));
   const desiredIds = new Set([
