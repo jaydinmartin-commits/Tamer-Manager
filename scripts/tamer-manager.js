@@ -301,6 +301,23 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
       ui.notifications.warn("Choose an NPC Actor from an enabled compendium.");
       return null;
     }
+
+    // Enforce the same eligibility planner used by the add/persistence path
+    // before exposing a selected compendium Actor as a world Actor. Ineligible
+    // entries must never be copied or leave behind orphan Actors.
+    const eligibility = await TamerRecords.previewAdd(tamer, source);
+    if (!eligibility?.eligible) {
+      const reason = eligibility?.reason;
+      const messages = {
+        "already-registered": "That creature is already registered as a companion.",
+        "companion-cr-too-high": "That creature's CR is above your current Tamer limit.",
+        "companion-size-too-large": "That creature is too large for your current Tamer level.",
+        "invalid-access-context": "Your Tamer progression could not be validated, so this creature cannot be added."
+      };
+      ui.notifications.warn(messages[reason] ?? "That creature does not meet your current companion requirements and cannot be added.");
+      return null;
+    }
+
     // Compendium documents must never be modified in place. Create a world Actor
     // copy before initialization, then let the existing initialization/recovery
     // contract manage the world document as it would a manually created NPC.
