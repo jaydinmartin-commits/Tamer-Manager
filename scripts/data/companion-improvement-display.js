@@ -10,7 +10,7 @@ export function selectedImprovementDisplay(record, definitions = []) {
     if (!id) continue;
     const countValue = typeof raw === "string" ? 1 : Number(raw?.count ?? raw?.rank ?? 1);
     const count = Number.isFinite(countValue) ? Math.max(1, Math.floor(countValue)) : 1;
-    selections.set(id, Math.max(selections.get(id) ?? 0, count));
+    selections.set(id, (selections.get(id) ?? 0) + count);
   }
 
   const replacedIds = new Set();
