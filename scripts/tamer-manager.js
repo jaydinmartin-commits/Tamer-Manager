@@ -356,6 +356,22 @@ export class TamerManager extends HandlebarsApplicationMixin(ApplicationV2) {
         `The companion could not be initialized (${result?.reason ?? "initialization-failed"}).`);
       return;
     }
+    const savedRecord = TamerRecords.read(this.tamer).find(item => item.id === result.record.id);
+    if (savedRecord?.improvements?.length) {
+      const definitions = CompanionOptions.byType("improvement", { companion: actor });
+      const allDefinitions = CompanionOptions.byType("improvement");
+      const warnings = [];
+      try {
+        const growth = await reconcileGrowthHitDie(actor, savedRecord.improvements, definitions);
+        if (growth.warning) warnings.push(growth.warning);
+        const sheetSync = await syncImprovementSheetItems(actor, savedRecord.improvements, definitions, allDefinitions);
+        warnings.push(...sheetSync.warnings);
+      } catch (error) {
+        console.error("Tamer Manager | Automatic taming-improvement sync failed.", error);
+        warnings.push("An automatically granted improvement needs sheet synchronization; reopen and save the companion's improvements to retry.");
+      }
+      if (warnings.length) ui.notifications.warn(warnings.join(" "));
+    }
     await this.render({ force: true });
   }
 
