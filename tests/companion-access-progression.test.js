@@ -33,6 +33,25 @@ async function test(name, callback) {
   }
 }
 
+await test("Tamer eligibility normalizes D&D 5e v6 size keys and object values", () => {
+  const tamer = { items: [{ type: "class", name: "Tamer", system: { identifier: "tamer", levels: 5 } }] };
+  const companion = size => ({ system: { details: { cr: 0.25 }, traits: { size } } });
+  for (const size of ["sm", "small"]) {
+    assert(TamerCompanionSummary.canTame(tamer, companion(size)).eligible, `Expected ${size} to normalize as Small.`);
+  }
+  for (const size of ["med", "medium", { value: "med" }]) {
+    assert(TamerCompanionSummary.canTame(tamer, companion(size)).eligible, `Expected ${JSON.stringify(size)} to normalize as Medium.`);
+  }
+  const invalid = TamerCompanionSummary.canTame(tamer, companion("unknown"));
+  assert(!invalid.eligible && invalid.reason === "missing-or-invalid-companion-size", "Unknown size must fail closed.");
+});
+
+await test("Tamer size rank normalizes aliases and rejects unknown values", () => {
+  assert(TamerCompanionSummary.sizeRank("lg") === TamerCompanionSummary.sizeRank("large"), "Large alias rank mismatch.");
+  assert(TamerCompanionSummary.sizeRank("grg") === TamerCompanionSummary.sizeRank("gargantuan"), "Gargantuan alias rank mismatch.");
+  assert(TamerCompanionSummary.sizeRank("unknown") === -1, "Unknown size must not receive a valid rank.");
+});
+
 await test("access context normalizes source data and unique permissions", () => {
   const context = CompanionAccessContext.create({
     ownerUuid: "Actor.owner",
