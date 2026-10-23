@@ -100,37 +100,38 @@ Hooks.once("init", () => {
   Hooks.on("getHeaderControlsActorSheetV2", addCompanionManagerHeaderControl);
   Hooks.on("getHeaderControlsApplicationV2", addCompanionManagerHeaderControl);
 
-  // Add the launcher during the generic ApplicationV2 render as well as the
-  // actor-sheet-specific render. The generic hook is required by some dnd5e 6.0.x
-  // ApplicationV2 sheet builds; actor validation keeps it from affecting other apps.
+  // Add the launcher to the character header during ApplicationV2 renders.
+  // dnd5e 6's rest buttons are conditional on showRests, so the launcher must
+  // also have a header fallback instead of silently disappearing with the rest container.
   const addTamerManagerSheetButton = (app, html) => {
-    const actor = app?.document ?? app?.actor ?? app?.object;
+    const actor = app?.actor ?? app?.document ?? app?.object;
     if (!actor || !TamerRecords.isTamer(actor)) return;
 
     const root = app.element?.[0] ?? app.element ?? html?.[0] ?? html;
     if (!root?.querySelector) return;
     if (root.querySelector('[data-action="openTamerManagerSheetButton"]')) return;
 
-    // Prefer the native rest controls; support small markup variations across
-    // dnd5e v6 patch releases and sheet themes.
-    const candidates = [...root.querySelectorAll("button")];
-    const restButtons = candidates.filter(button => {
-      const action = String(button.dataset?.action ?? "").toLowerCase();
-      const type = String(button.dataset?.type ?? "").toLowerCase();
-      const label = [
-        button.title, button.getAttribute("aria-label"),
-        button.dataset?.tooltip, button.textContent
-      ].filter(Boolean).join(" ").toLowerCase();
-      return (action === "rest" || action.includes("rest") || type.includes("rest"))
-        && (type.includes("short") || type.includes("long") || /short rest|long rest/.test(label));
-    });
-    const restButton = restButtons[restButtons.length - 1];
-    if (!restButton?.parentElement) return;
+    const header = root.querySelector(".sheet-header");
+    if (!header) return;
 
+    let restContainer = header.querySelector(".sheet-header-buttons");
+    if (!restContainer) {
+      // Keep the same native location even when a sheet theme hides the rest controls.
+      restContainer = document.createElement("div");
+      restContainer.className = "sheet-header-buttons";
+      const right = header.querySelector(".right");
+      if (right) right.prepend(restContainer);
+      else header.append(restContainer);
+    }
+
+    // Prefer an actual rest button for exact native styling; otherwise use the
+    // same class names found in dnd5e 6's character-header.hbs.
+    const restButton = restContainer.querySelector('button[data-action="rest"]')
+      ?? root.querySelector(".sheet-header-buttons button");
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.action = "openTamerManagerSheetButton";
-    button.className = restButton.className;
+    button.className = restButton?.className || "shortRest-rest gold-button";
     button.title = "Open Tamer Manager";
     button.setAttribute("aria-label", "Open Tamer Manager");
     button.setAttribute("data-tooltip", "Open Tamer Manager");
@@ -140,7 +141,10 @@ Hooks.once("init", () => {
       event.stopPropagation();
       TamerManager.openFor(actor);
     });
-    restButton.insertAdjacentElement("afterend", button);
+
+    const anchor = restButton ?? restContainer.lastElementChild;
+    if (anchor) anchor.insertAdjacentElement("afterend", button);
+    else restContainer.append(button);
   };
 
   Hooks.on("renderApplicationV2", addTamerManagerSheetButton);
