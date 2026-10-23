@@ -100,31 +100,40 @@ Hooks.once("init", () => {
   Hooks.on("getHeaderControlsActorSheetV2", addCompanionManagerHeaderControl);
   Hooks.on("getHeaderControlsApplicationV2", addCompanionManagerHeaderControl);
 
-  // Place a compact launcher alongside D&D 5e's native short/long rest buttons.
-  // The Companion tab is intentionally not registered: the manager opens in its own
-  // ApplicationV2 window, while the header control above remains the backup entry point.
+  // Add the launcher during the generic ApplicationV2 render as well as the
+  // actor-sheet-specific render. The generic hook is required by some dnd5e 6.0.x
+  // ApplicationV2 sheet builds; actor validation keeps it from affecting other apps.
   const addTamerManagerSheetButton = (app, html) => {
     const actor = app?.document ?? app?.actor ?? app?.object;
     if (!actor || !TamerRecords.isTamer(actor)) return;
+
     const root = app.element?.[0] ?? app.element ?? html?.[0] ?? html;
     if (!root?.querySelector) return;
     if (root.querySelector('[data-action="openTamerManagerSheetButton"]')) return;
 
-    // In dnd5e 6.0.x both native rest buttons use data-action="rest";
-    // the rest type is carried by data-type (shortRest / longRest).
-    const restContainer = root.querySelector(".sheet-header-buttons");
-    const restButtons = restContainer?.querySelectorAll('button[data-action="rest"][data-type]');
-    const restButton = restButtons?.[restButtons.length - 1];
-    if (!restContainer || !restButton) return;
+    // Prefer the native rest controls; support small markup variations across
+    // dnd5e v6 patch releases and sheet themes.
+    const candidates = [...root.querySelectorAll("button")];
+    const restButtons = candidates.filter(button => {
+      const action = String(button.dataset?.action ?? "").toLowerCase();
+      const type = String(button.dataset?.type ?? "").toLowerCase();
+      const label = [
+        button.title, button.getAttribute("aria-label"),
+        button.dataset?.tooltip, button.textContent
+      ].filter(Boolean).join(" ").toLowerCase();
+      return (action === "rest" || action.includes("rest") || type.includes("rest"))
+        && (type.includes("short") || type.includes("long") || /short rest|long rest/.test(label));
+    });
+    const restButton = restButtons[restButtons.length - 1];
+    if (!restButton?.parentElement) return;
 
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.action = "openTamerManagerSheetButton";
-    // Reuse the native gold rest-button styling and square icon-only footprint.
     button.className = restButton.className;
     button.title = "Open Tamer Manager";
     button.setAttribute("aria-label", "Open Tamer Manager");
-    button.setAttribute("data-tooltip", "");
+    button.setAttribute("data-tooltip", "Open Tamer Manager");
     button.innerHTML = '<i class="fa-solid fa-paw" aria-hidden="true"></i>';
     button.addEventListener("click", event => {
       event.preventDefault();
@@ -134,8 +143,9 @@ Hooks.once("init", () => {
     restButton.insertAdjacentElement("afterend", button);
   };
 
-  Hooks.on("renderCharacterActorSheet", addTamerManagerSheetButton);
+  Hooks.on("renderApplicationV2", addTamerManagerSheetButton);
   Hooks.on("renderActorSheetV2", addTamerManagerSheetButton);
+  Hooks.on("renderCharacterActorSheet", addTamerManagerSheetButton);
 
   game.modules.get(MODULE_ID).api = {
     TamerManager,
