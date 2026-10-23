@@ -136,7 +136,6 @@ Hooks.once("init", () => {
 
   Hooks.on("renderCharacterActorSheet", addTamerManagerSheetButton);
   Hooks.on("renderActorSheetV2", addTamerManagerSheetButton);
-  Hooks.on("renderApplicationV2", addTamerManagerSheetButton);
 
   game.modules.get(MODULE_ID).api = {
     TamerManager,
