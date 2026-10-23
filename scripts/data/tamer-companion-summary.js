@@ -6,7 +6,12 @@ const SIZE_ALIASES = Object.freeze({
 });
 
 function normalizeSize(value) {
-  const key = String(value ?? "").trim().toLowerCase();
+  // dnd5e normally stores size as a key, but imported/system-derived data may
+  // expose a size configuration object such as { value: "med" }.
+  const raw = value && typeof value === "object"
+    ? (value.value ?? value.id ?? value.key ?? value.label)
+    : value;
+  const key = String(raw ?? "").trim().toLowerCase();
   return SIZE_ALIASES[key] ?? null;
 }
 
