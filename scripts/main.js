@@ -100,135 +100,42 @@ Hooks.once("init", () => {
   Hooks.on("getHeaderControlsActorSheetV2", addCompanionManagerHeaderControl);
   Hooks.on("getHeaderControlsApplicationV2", addCompanionManagerHeaderControl);
 
-  // D&D 5e v6 may finish exposing its sheet class after the module init hook.
-  // Register once the system is ready, rather than permanently skipping the tab
-  // when the class is not yet available during init.
-  Hooks.once("ready", () => {
-  const CharacterActorSheet = game.dnd5e?.applications?.actor?.CharacterActorSheet ?? globalThis.dnd5e?.applications?.actor?.CharacterActorSheet;
-  if (CharacterActorSheet && !CharacterActorSheet.__tamerManagerTabRegistered) {
-    CharacterActorSheet.__tamerManagerTabRegistered = true;
-    CharacterActorSheet.PARTS = {
-      ...CharacterActorSheet.PARTS,
-      companions: {
-        container: { classes: ["tab-body"], id: "companions" },
-        template: "modules/tamer-manager/templates/tamer-manager.hbs",
-        scrollable: [""]
-      }
-    };
-    const companionTab = {
-      tab: "companions",
-      label: "Companions",
-      icon: "fa-solid fa-paw",
-      condition: actor => TamerRecords.isTamer(actor)
-    };
-    const existingTabs = CharacterActorSheet.TABS;
-    if (Array.isArray(existingTabs)) {
-      // Legacy list-shaped tab configuration.
-      CharacterActorSheet.TABS = existingTabs.some(tab => tab?.tab === "companions")
-        ? existingTabs : [...existingTabs, companionTab];
-    } else if (existingTabs && typeof existingTabs === "object") {
-      // ApplicationV2 system sheets may expose grouped tab configuration.
-      const groupedKey = Object.keys(existingTabs).find(key => Array.isArray(existingTabs[key]?.tabs));
-      if (!groupedKey) {
-        console.error("Tamer Manager | Unsupported CharacterActorSheet.TABS shape; preserving native tabs.", existingTabs);
-        delete CharacterActorSheet.__tamerManagerTabRegistered;
-        return;
-      }
-      const group = existingTabs[groupedKey];
-      CharacterActorSheet.TABS = {
-        ...existingTabs,
-        [groupedKey]: {
-          ...group,
-          tabs: group.tabs.some(tab => tab?.tab === "companions" || tab?.id === "companions")
-            ? group.tabs : [...group.tabs, companionTab]
-        }
-      };
-    } else {
-      console.error("Tamer Manager | CharacterActorSheet.TABS is unavailable; preserving native tabs.");
-      delete CharacterActorSheet.__tamerManagerTabRegistered;
-      return;
-    }
+  // Place a compact launcher alongside D&D 5e's native short/long rest buttons.
+  // The Companion tab is intentionally not registered: the manager opens in its own
+  // ApplicationV2 window, while the header control above remains the backup entry point.
+  const addTamerManagerSheetButton = (app, html) => {
+    const actor = app?.document ?? app?.actor ?? app?.object;
+    if (!actor || !TamerRecords.isTamer(actor)) return;
+    const root = app.element?.[0] ?? app.element ?? html?.[0] ?? html;
+    if (!root?.querySelector) return;
+    if (root.querySelector('[data-action="openTamerManagerSheetButton"]')) return;
 
-    const originalPreparePartContext = CharacterActorSheet.prototype._preparePartContext;
-    CharacterActorSheet.prototype._preparePartContext = async function(partId, context, options) {
-      if (partId === "companions") {
-        const managerContext = await TamerManager.prototype._prepareContext.call({ tamer: this.actor });
-        return { ...context, ...managerContext, inSheetTab: true };
-      }
-      return originalPreparePartContext.call(this, partId, context, options);
-    };
+    // In dnd5e 6.0.x both native rest buttons use data-action="rest";
+    // the rest type is carried by data-type (shortRest / longRest).
+    const restContainer = root.querySelector(".sheet-header-buttons");
+    const restButtons = restContainer?.querySelectorAll('button[data-action="rest"][data-type]');
+    const restButton = restButtons?.[restButtons.length - 1];
+    if (!restContainer || !restButton) return;
 
-    const forwardManagerAction = handler => function(event, target) {
-      // Sheet actions can be invoked with a delegated target or the event's
-      // current target depending on the ApplicationV2 action dispatcher.
-      const actionTarget = target?.dataset
-        ? target
-        : event?.currentTarget?.dataset
-          ? event.currentTarget
-          : event?.target?.closest?.("[data-action]") ?? target;
-      const actor = this.actor ?? this.document ?? this.object;
-      if (!actor) {
-        console.error("Tamer Manager | Sheet action had no owning Actor.", { action: actionTarget?.dataset?.action, sheet: this });
-        ui.notifications.error("Tamer Manager could not identify the character for this action. Reopen the character sheet and try again.");
-        return;
-      }
-      const context = { tamer: actor, render: this.render.bind(this) };
-      return handler.call(context, event, actionTarget);
-    };
-    const sheetOptions = CharacterActorSheet.DEFAULT_OPTIONS ?? {};
-    const managerActions = {
-      tamerRefresh: TamerManager._onRefresh,
-      tamerAddCompanion: TamerManager._onAddCompanion,
-      tamerRemoveCompanion: TamerManager._onRemoveCompanion,
-      tamerOpenCompanion: TamerManager._onOpenCompanion,
-      tamerToggleSummon: TamerManager._onToggleSummon,
-      tamerAssignVessel: TamerManager._onAssignVessel,
-      tamerClearVessel: TamerManager._onClearVessel,
-      tamerManageImprovements: TamerManager._onManageImprovements
-    };
-    CharacterActorSheet.DEFAULT_OPTIONS = {
-      ...sheetOptions,
-      actions: {
-        ...(sheetOptions.actions ?? {}),
-        ...Object.fromEntries(Object.entries(managerActions).map(([name, handler]) => [name, forwardManagerAction(handler)]))
-      }
-    };
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.action = "openTamerManagerSheetButton";
+    // Reuse the native gold rest-button styling and square icon-only footprint.
+    button.className = restButton.className;
+    button.title = "Open Tamer Manager";
+    button.setAttribute("aria-label", "Open Tamer Manager");
+    button.setAttribute("data-tooltip", "");
+    button.innerHTML = '<i class="fa-solid fa-paw" aria-hidden="true"></i>';
+    button.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      TamerManager.openFor(actor);
+    });
+    restButton.insertAdjacentElement("afterend", button);
+  };
 
-    // The system action dispatcher can miss actions on dynamically added parts.
-    // A delegated fallback keeps the Companion tab buttons functional.
-    const originalOnRender = CharacterActorSheet.prototype._onRender;
-    if (typeof originalOnRender === "function" && !CharacterActorSheet.prototype.__tamerManagerRenderActionsPatched) {
-      CharacterActorSheet.prototype.__tamerManagerRenderActionsPatched = true;
-      CharacterActorSheet.prototype._onRender = async function(context, options) {
-        await originalOnRender.call(this, context, options);
-        const sheet = this;
-        const root = sheet.element;
-        if (!root?.addEventListener || root.dataset?.tamerManagerActionsBound) return;
-        if (root.dataset) root.dataset.tamerManagerActionsBound = "true";
-        root.addEventListener("click", event => {
-          const target = event.target?.closest?.('button[data-action^="tamer"]');
-          if (!target || !root.contains(target)) return;
-          const handler = managerActions[target.dataset.action];
-          if (typeof handler !== "function") return;
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          const actor = sheet.actor ?? sheet.document ?? sheet.object;
-          if (!actor) {
-            ui.notifications.error("Tamer Manager could not identify the character for this action.");
-            return;
-          }
-          const actionContext = { tamer: actor, render: sheet.render.bind(sheet) };
-          Promise.resolve(handler.call(actionContext, event, target)).catch(error => {
-            console.error("Tamer Manager | Companion-tab action failed.", error);
-            ui.notifications.error("That Companion Manager action failed. Check the console for details.");
-          });
-        }, true);
-      };
-    }
-  } else if (!CharacterActorSheet) {
-    console.error("Tamer Manager | D&D 5e CharacterActorSheet was unavailable at ready; the standalone Companion Manager remains available.");
-  }
-  });
+  Hooks.on("renderCharacterActorSheet", addTamerManagerSheetButton);
+  Hooks.on("renderActorSheetV2", addTamerManagerSheetButton);
 
   game.modules.get(MODULE_ID).api = {
     TamerManager,
