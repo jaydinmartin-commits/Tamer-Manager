@@ -110,18 +110,22 @@ Hooks.once("init", () => {
     if (!root?.querySelector) return;
     if (root.querySelector('[data-action="openTamerManagerSheetButton"]')) return;
 
-    const restButton = root.querySelector(
-      '[data-action*="longRest"], [data-action*="shortRest"], [data-action*="long-rest"], [data-action*="short-rest"]'
-    );
-    if (!restButton?.parentElement) return;
+    // In dnd5e 6.0.x both native rest buttons use data-action="rest";
+    // the rest type is carried by data-type (shortRest / longRest).
+    const restContainer = root.querySelector(".sheet-header-buttons");
+    const restButtons = restContainer?.querySelectorAll('button[data-action="rest"][data-type]');
+    const restButton = restButtons?.[restButtons.length - 1];
+    if (!restContainer || !restButton) return;
 
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.action = "openTamerManagerSheetButton";
+    // Reuse the native gold rest-button styling and square icon-only footprint.
     button.className = restButton.className;
     button.title = "Open Tamer Manager";
     button.setAttribute("aria-label", "Open Tamer Manager");
-    button.innerHTML = '<i class="fa-solid fa-paw" aria-hidden="true"></i><span>Tamer Manager</span>';
+    button.setAttribute("data-tooltip", "");
+    button.innerHTML = '<i class="fa-solid fa-paw" aria-hidden="true"></i>';
     button.addEventListener("click", event => {
       event.preventDefault();
       event.stopPropagation();
